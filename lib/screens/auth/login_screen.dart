@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:emergencias_vehiculares/services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,11 +13,30 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _cargando = false;
 
-  void _login() {
+  void _login() async {
     if (_formKey.currentState!.validate()) {
-      // Por ahora simulamos el login
-      Navigator.pushReplacementNamed(context, '/home');
+      setState(() => _cargando = true);
+
+      final respuesta = await ApiService.login(
+        _emailController.text,
+        _passwordController.text,
+      );
+
+      setState(() => _cargando = false);
+
+      if (respuesta != null) {
+        // Guardar datos del usuario
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Correo o contraseña incorrectos'),
+            backgroundColor: Color(0xFFE53935),
+          ),
+        );
+      }
     }
   }
 
@@ -33,11 +53,19 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Logo e ícono
-                const Icon(Icons.car_repair, size: 80, color: Color(0xFFE53935)),
+                const Icon(
+                  Icons.car_repair,
+                  size: 80,
+                  color: Color(0xFFE53935),
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'EmergenciasVial',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A2E),
+                  ),
                 ),
                 const Text(
                   'Asistencia vehicular al instante',
@@ -52,12 +80,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: 'Correo electrónico',
                     prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     filled: true,
                     fillColor: Colors.white,
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Ingresa tu correo';
+                    if (value == null || value.isEmpty)
+                      return 'Ingresa tu correo';
                     if (!value.contains('@')) return 'Correo no válido';
                     return null;
                   },
@@ -72,15 +103,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     filled: true,
                     fillColor: Colors.white,
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Ingresa tu contraseña';
+                    if (value == null || value.isEmpty)
+                      return 'Ingresa tu contraseña';
                     if (value.length < 6) return 'Mínimo 6 caracteres';
                     return null;
                   },
@@ -92,7 +131,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/recuperar'),
-                    child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(color: Color(0xFFE53935))),
+                    child: const Text(
+                      '¿Olvidaste tu contraseña?',
+                      style: TextStyle(color: Color(0xFFE53935)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -102,15 +144,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _cargando ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE53935),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Iniciar sesión', style: TextStyle(fontSize: 16, color: Colors.white)),
+                    child: _cargando
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Iniciar sesión',
+                            style: TextStyle(fontSize: 16, color: Colors.white),
+                          ),
                   ),
                 ),
-                const SizedBox(height: 20),
 
                 // Ir a registro
                 Row(
@@ -119,7 +167,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('¿No tienes cuenta? '),
                     GestureDetector(
                       onTap: () => Navigator.pushNamed(context, '/registro'),
-                      child: const Text('Regístrate', style: TextStyle(color: Color(0xFFE53935), fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Regístrate',
+                        style: TextStyle(
+                          color: Color(0xFFE53935),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
