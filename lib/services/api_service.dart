@@ -166,4 +166,59 @@ static Future<Map<String, dynamic>?> actualizarVehiculo(
     return null;
   }
 }
+// ── EMERGENCIAS ────────────────────────────────────────────────
+
+static Future<String?> _getToken() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('token');
+}
+
+// CU08 — Registrar emergencia
+static Future<Map<String, dynamic>?> registrarEmergencia(Map<String, dynamic> datos) async {
+  try {
+    final token = await _getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/emergencias/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(datos),
+    );
+    if (response.statusCode == 201) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// CU19 — Obtener estado de emergencia
+static Future<Map<String, dynamic>?> obtenerEstadoEmergencia(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/$idEmergencia/estado'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// CU22 — Historial de emergencias
+static Future<List<dynamic>?> obtenerHistorialEmergencias() async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/conductor/historial'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
 }
