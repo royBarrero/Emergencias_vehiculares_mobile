@@ -170,13 +170,15 @@ static Future<Map<String, dynamic>?> actualizarVehiculo(
 
 static Future<String?> _getToken() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getString('token');
+  final token = prefs.getString('token');
+  return token?.trim(); // trim elimina saltos de línea y espacios
 }
 
 // CU08 — Registrar emergencia
 static Future<Map<String, dynamic>?> registrarEmergencia(Map<String, dynamic> datos) async {
   try {
     final token = await _getToken();
+    print('TOKEN: $token'); 
     final response = await http.post(
       Uri.parse('$baseUrl/emergencias/'),
       headers: {
@@ -185,6 +187,7 @@ static Future<Map<String, dynamic>?> registrarEmergencia(Map<String, dynamic> da
       },
       body: jsonEncode(datos),
     );
+    print('STATUS: ${response.statusCode}');
     if (response.statusCode == 201) return jsonDecode(response.body);
     return null;
   } catch (e) {
