@@ -1,5 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'seguimiento_emergencia_screen.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,7 +13,8 @@ class RegistrarEmergenciaScreen extends StatefulWidget {
   const RegistrarEmergenciaScreen({super.key});
 
   @override
-  State<RegistrarEmergenciaScreen> createState() => _RegistrarEmergenciaScreenState();
+  State<RegistrarEmergenciaScreen> createState() =>
+      _RegistrarEmergenciaScreenState();
 }
 
 class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
@@ -25,6 +31,15 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
   String _direccion = 'Obteniendo ubicación...';
   bool _cargandoUbicacion = false;
   final TextEditingController _descripcionCtrl = TextEditingController();
+  // Fotos
+  final ImagePicker _picker = ImagePicker();
+  List<XFile> _fotos = [];
+
+  // Audio
+  final AudioRecorder _recorder = AudioRecorder();
+  bool _grabando = false;
+  String? _rutaAudio;
+  Duration _duracionGrabacion = Duration.zero;
 
   // Vehículos del conductor
   List<dynamic> _vehiculos = [];
@@ -57,55 +72,188 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
     final conductor = await ApiService.obtenerConductorPorUsuario(idUsuario);
     if (conductor == null) return;
 
-    final vehiculos = await ApiService.obtenerVehiculos(conductor['id_conductor']);
+    final vehiculos = await ApiService.obtenerVehiculos(
+      conductor['id_conductor'],
+    );
     setState(() {
       _vehiculos = vehiculos ?? [];
       _cargandoVehiculos = false;
     });
   }
+
   Future<void> _obtenerUbicacion() async {
-  setState(() => _cargandoUbicacion = true);
-
-  bool servicioActivo = await Geolocator.isLocationServiceEnabled();
-  if (!servicioActivo) {
-    setState(() {
-      _direccion = 'GPS desactivado';
-      _cargandoUbicacion = false;
-    });
-    return;
-  }
-
-  LocationPermission permiso = await Geolocator.checkPermission();
-  if (permiso == LocationPermission.denied) {
-    permiso = await Geolocator.requestPermission();
-    if (permiso == LocationPermission.denied) {
+    setState(() => _cargandoUbicacion = true);
+    bool servicioActivo = await Geolocator.isLocationServiceEnabled();
+    if (!servicioActivo) {
       setState(() {
-        _direccion = 'Permiso de ubicación denegado';
+        _direccion = 'GPS desactivado';
         _cargandoUbicacion = false;
       });
       return;
     }
-  }
 
-  if (permiso == LocationPermission.deniedForever) {
+    LocationPermission permiso = await Geolocator.checkPermission();
+    if (permiso == LocationPermission.denied) {
+      permiso = await Geolocator.requestPermission();
+      if (permiso == LocationPermission.denied) {
+        setState(() {
+          _direccion = 'Permiso de ubicación denegado';
+          _cargandoUbicacion = false;
+        });
+        return;
+      }
+    }
+
+    if (permiso == LocationPermission.deniedForever) {
+      setState(() {
+        _direccion = 'Permiso denegado permanentemente';
+        _cargandoUbicacion = false;
+      });
+      return;
+    }
+
+    Position posicion = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
     setState(() {
-      _direccion = 'Permiso denegado permanentemente';
+      _latitud = posicion.latitude;
+      _longitud = posicion.longitude;
+      _direccion =
+          'Lat: ${posicion.latitude.toStringAsFixed(4)}, Lng: ${posicion.longitude.toStringAsFixed(4)}';
       _cargandoUbicacion = false;
     });
+  }
+
+  // ── Prioridad automática ──
+  String _calcularPrioridad(String tipoIncidente) {
+    const alta = ['Accidente', 'Falla de frenos', 'Falla de motor'];
+    const media = ['Sobrecalentamiento', 'Transmisión', 'Batería descargada'];
+    if (alta.contains(tipoIncidente)) return 'alta';
+    if (media.contains(tipoIncidente)) return 'media';
+    return 'baja';
+  }
+
+  // ← aquí va el nuevo método
+  Color _getPrioridadColor(String prioridad) {
+    if (prioridad == 'alta') return const Color(0xFFE53935);
+    if (prioridad == 'media') return Colors.orange;
+    return Colors.green;
+  }
+
+  // ── Fotos ──
+ Future<void> _tomarFoto() async {
+  if (_fotos.length >= 3) {
+    _mostrarError('Máximo 3 fotos');
+    return;
+  }
+  final XFile? foto = await _picker.pickImage(
+    source: ImageSource.camera,
+    imageQuality: 70,
+  );
+  if (foto != null) {
+    setState(() => _fotos.add(foto));
+  }
+}
+
+Future<void> _elegirDeGaleria() async {
+  if (_fotos.length >= 3) {
+    _mostrarError('Máximo 3 fotos');
+    return;
+  }
+  final XFile? foto = await _picker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 70,
+  );
+  if (foto != null) {
+    setState(() => _fotos.add(foto));
+  }
+}
+
+  void _eliminarFoto(int index) {
+    setState(() => _fotos.removeAt(index));
+  }
+
+  // ── Audio ──
+  Future<void> _toggleGrabacion() async {
+  // El audio solo funciona en móvil
+  if (identical(0, 0.0)) {
+    _mostrarError('La grabación de audio no está disponible en web');
     return;
   }
 
-  Position posicion = await Geolocator.getCurrentPosition(
-    desiredAccuracy: LocationAccuracy.high,
-  );
-
-  setState(() {
-    _latitud = posicion.latitude;
-    _longitud = posicion.longitude;
-    _direccion = 'Lat: ${posicion.latitude.toStringAsFixed(4)}, Lng: ${posicion.longitude.toStringAsFixed(4)}';
-    _cargandoUbicacion = false;
-  });
+  if (_grabando) {
+    final ruta = await _recorder.stop();
+    setState(() {
+      _grabando = false;
+      _rutaAudio = ruta;
+    });
+  } else {
+    final permiso = await _recorder.hasPermission();
+    if (!permiso) {
+      _mostrarError('Permiso de micrófono denegado');
+      return;
+    }
+    final dir = await getTemporaryDirectory();
+    final ruta = '${dir.path}/audio_emergencia.m4a';
+    await _recorder.start(
+      const RecordConfig(encoder: AudioEncoder.aacLc),
+      path: ruta,
+    );
+    setState(() {
+      _grabando = true;
+      _rutaAudio = null;
+    });
+  }
 }
+
+  // ── Subir evidencia al backend ──
+  Future<void> _subirEvidencias(int idEmergencia) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token')?.trim() ?? '';
+
+  for (final foto in _fotos) {
+    final bytes = await foto.readAsBytes();
+    final nombreArchivo = foto.name;
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['tipo'] = 'foto';
+    request.files.add(http.MultipartFile.fromBytes(
+      'archivo',
+      bytes,
+      filename: nombreArchivo,
+    ));
+    await request.send();
+  }
+
+  // Audio solo en móvil
+if (_rutaAudio != null) {
+  try {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['tipo'] = 'audio';
+    // En móvil XFile funciona con path
+    final audioXFile = XFile(_rutaAudio!);
+    final audioBytes = await audioXFile.readAsBytes();
+    request.files.add(http.MultipartFile.fromBytes(
+      'archivo',
+      audioBytes,
+      filename: 'audio_emergencia.m4a',
+    ));
+    await request.send();
+  } catch (e) {
+    // Si falla en web simplemente continúa
+  }
+}
+}
+
   void _siguientePaso() {
     if (_pasoActual == 0 && _idVehiculoSeleccionado == null) {
       _mostrarError('Selecciona un vehículo');
@@ -142,40 +290,45 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
     );
   }
 
-void _confirmarEmergencia() async {
-  if (_latitud == null || _longitud == null) {
-    _mostrarError('No se pudo obtener la ubicación GPS. Intenta de nuevo.');
-    return;
-  }
+  void _confirmarEmergencia() async {
+    if (_latitud == null || _longitud == null) {
+      _mostrarError('No se pudo obtener la ubicación GPS. Intenta de nuevo.');
+      return;
+    }
 
-  setState(() => _enviando = true);
+    setState(() => _enviando = true);
 
-  final datos = {
-    'id_vehiculo': _idVehiculoSeleccionado,
-    'latitud': _latitud,
-    'longitud': _longitud,
-    'direccion_aproximada': _direccion,
-    'tipo_incidente': _tipoIncidente,
-    'prioridad': _prioridad,
-    'descripcion': _descripcionCtrl.text,
-  };
+    final prioridadAuto = _calcularPrioridad(_tipoIncidente);
 
-  final resultado = await ApiService.registrarEmergencia(datos);
-  setState(() => _enviando = false);
+    final datos = {
+      'id_vehiculo': _idVehiculoSeleccionado,
+      'latitud': _latitud,
+      'longitud': _longitud,
+      'direccion_aproximada': _direccion,
+      'tipo_incidente': _tipoIncidente,
+      'prioridad': prioridadAuto,
+      'descripcion': _descripcionCtrl.text,
+    };
 
-  if (resultado != null) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SeguimientoEmergenciaScreen(
-          idEmergencia: resultado['id_emergencia'],
+    final resultado = await ApiService.registrarEmergencia(datos);
+
+    if (resultado != null) {
+      await _subirEvidencias(resultado['id_emergencia']);
+      setState(() => _enviando = false);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SeguimientoEmergenciaScreen(
+            idEmergencia: resultado['id_emergencia'],
+          ),
         ),
-      ),
-    );
-  } else {
-    _mostrarError('Error al registrar la emergencia. Intenta de nuevo.');
+      );
+    } else {
+      setState(() => _enviando = false);
+      _mostrarError('Error al registrar la emergencia. Intenta de nuevo.');
+    }
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,8 +388,8 @@ void _confirmarEmergencia() async {
                     color: completado
                         ? const Color(0xFFE53935)
                         : activo
-                            ? Colors.white
-                            : Colors.white24,
+                        ? Colors.white
+                        : Colors.white24,
                   ),
                   child: Center(
                     child: completado
@@ -246,7 +399,9 @@ void _confirmarEmergencia() async {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: activo ? const Color(0xFF2c3e50) : Colors.white54,
+                              color: activo
+                                  ? const Color(0xFF2c3e50)
+                                  : Colors.white54,
                             ),
                           ),
                   ),
@@ -255,7 +410,9 @@ void _confirmarEmergencia() async {
                   Expanded(
                     child: Container(
                       height: 2,
-                      color: completado ? const Color(0xFFE53935) : Colors.white24,
+                      color: completado
+                          ? const Color(0xFFE53935)
+                          : Colors.white24,
                     ),
                   ),
               ],
@@ -275,143 +432,174 @@ void _confirmarEmergencia() async {
         children: [
           const Text(
             'Selecciona tu vehículo',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF2c3e50)),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2c3e50),
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
             '¿Con qué vehículo tuviste el problema?',
-              
+
             style: TextStyle(fontSize: 13, color: Colors.grey),
           ),
           const SizedBox(height: 16),
-Container(
-  padding: const EdgeInsets.all(14),
-  decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(12),
-    boxShadow: [
-      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
-    ],
-  ),
-  child: Row(
-    children: [
-      Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: const Color(0xFFE53935).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Icon(Icons.location_on, color: Color(0xFFE53935), size: 22),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Tu ubicación', style: TextStyle(fontSize: 11, color: Colors.grey)),
-            Text(
-              _direccion,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
             ),
-          ],
-        ),
-      ),
-      if (_cargandoUbicacion)
-        const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2c3e50)),
-        ),
-    ],
-  ),
-),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE53935).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.location_on,
+                    color: Color(0xFFE53935),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tu ubicación',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      Text(
+                        _direccion,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_cargandoUbicacion)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF2c3e50),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
           _cargandoVehiculos
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF2c3e50)))
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2c3e50)),
+                )
               : _vehiculos.isEmpty
-                  ? Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Text('No tienes vehículos registrados',
-                            style: TextStyle(color: Colors.grey)),
-                      ),
-                    )
-                  : Column(
-                      children: _vehiculos.map((v) {
-                        final seleccionado = _idVehiculoSeleccionado == v['id_vehiculo'];
-                        return GestureDetector(
-                          onTap: () => setState(() {
-                            _idVehiculoSeleccionado = v['id_vehiculo'];
-                            _vehiculoNombre = '${v['marca']} ${v['modelo']} · ${v['placa']}';
-                          }),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: seleccionado
-                                    ? const Color(0xFFE53935)
-                                    : Colors.transparent,
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 8),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF2c3e50).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.directions_car,
-                                      color: Color(0xFF2c3e50)),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${v['marca']} ${v['modelo']}',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600, fontSize: 14),
-                                      ),
-                                      Text(
-                                        '${v['placa']} · ${v['color'] ?? ''}',
-                                        style: const TextStyle(
-                                            color: Colors.grey, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (seleccionado)
-                                  const Icon(Icons.check_circle,
-                                      color: Color(0xFFE53935)),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
+              ? Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'No tienes vehículos registrados',
+                      style: TextStyle(color: Colors.grey),
                     ),
+                  ),
+                )
+              : Column(
+                  children: _vehiculos.map((v) {
+                    final seleccionado =
+                        _idVehiculoSeleccionado == v['id_vehiculo'];
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        _idVehiculoSeleccionado = v['id_vehiculo'];
+                        _vehiculoNombre =
+                            '${v['marca']} ${v['modelo']} · ${v['placa']}';
+                      }),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: seleccionado
+                                ? const Color(0xFFE53935)
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2c3e50).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.directions_car,
+                                color: Color(0xFF2c3e50),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${v['marca']} ${v['modelo']}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${v['placa']} · ${v['color'] ?? ''}',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (seleccionado)
+                              const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFFE53935),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
         ],
       ),
     );
   }
 
-  // ── Paso 2: Tipo de incidente ──
   Widget _buildPaso2Incidente() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -420,11 +608,15 @@ Container(
         children: [
           const Text(
             '¿Qué problema tienes?',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF2c3e50)),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2c3e50),
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Selecciona el tipo de incidente y prioridad',
+            'Selecciona el tipo de incidente',
             style: TextStyle(fontSize: 13, color: Colors.grey),
           ),
           const SizedBox(height: 20),
@@ -438,9 +630,14 @@ Container(
               return GestureDetector(
                 onTap: () => setState(() => _tipoIncidente = tipo),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: seleccionado ? const Color(0xFF2c3e50) : Colors.white,
+                    color: seleccionado
+                        ? const Color(0xFF2c3e50)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: seleccionado
@@ -453,7 +650,9 @@ Container(
                     style: TextStyle(
                       fontSize: 13,
                       color: seleccionado ? Colors.white : Colors.black87,
-                      fontWeight: seleccionado ? FontWeight.w500 : FontWeight.normal,
+                      fontWeight: seleccionado
+                          ? FontWeight.w500
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -461,28 +660,269 @@ Container(
             }).toList(),
           ),
 
+          // Prioridad automática
+          if (_tipoIncidente.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _getPrioridadColor(
+                  _calcularPrioridad(_tipoIncidente),
+                ).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _getPrioridadColor(
+                    _calcularPrioridad(_tipoIncidente),
+                  ).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: _getPrioridadColor(
+                      _calcularPrioridad(_tipoIncidente),
+                    ),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Prioridad asignada automáticamente: ${_calcularPrioridad(_tipoIncidente).toUpperCase()}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: _getPrioridadColor(
+                        _calcularPrioridad(_tipoIncidente),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 24),
+
+          // ── FOTOS ──
           const Text(
-            'Prioridad',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2c3e50)),
+            'Fotos del problema',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2c3e50),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Máximo 3 fotos',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 12),
 
-          // Prioridad
           Row(
             children: [
-              _buildPrioridadBtn('baja', 'Baja', Colors.green),
-              const SizedBox(width: 8),
-              _buildPrioridadBtn('media', 'Media', Colors.orange),
-              const SizedBox(width: 8),
-              _buildPrioridadBtn('alta', 'Alta', const Color(0xFFE53935)),
+              // Botón cámara
+              Expanded(
+                child: GestureDetector(
+                  onTap: _tomarFoto,
+                  child: Container(
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.camera_alt,
+                          color: Color(0xFF2c3e50),
+                          size: 24,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Cámara',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Botón galería
+              Expanded(
+                child: GestureDetector(
+                  onTap: _elegirDeGaleria,
+                  child: Container(
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.photo_library,
+                          color: Color(0xFF2c3e50),
+                          size: 24,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Galería',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
 
+          // Fotos seleccionadas
+          if (_fotos.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Column(
+              children: List.generate(_fotos.length, (i) {
+                final nombreArchivo = _fotos[i].path
+                    .split('/')
+                    .last
+                    .split('\\')
+                    .last;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2c3e50).withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF2c3e50).withOpacity(0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.image,
+                        color: Color(0xFF2c3e50),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          nombreArchivo,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _eliminarFoto(i),
+                        child: const Icon(
+                          Icons.close,
+                          color: Color(0xFFE53935),
+                          size: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ],
+
           const SizedBox(height: 24),
+
+          // ── AUDIO ──
           const Text(
-            'Descripción (opcional)',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2c3e50)),
+            'Descripción por audio',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2c3e50),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: _toggleGrabacion,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: _grabando ? Colors.grey : const Color(0xFFE53935),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _grabando ? Icons.stop : Icons.mic,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _grabando
+                            ? 'Grabando...'
+                            : _rutaAudio != null
+                            ? 'Audio grabado ✓'
+                            : 'Toca el micrófono para grabar',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: _grabando
+                              ? const Color(0xFFE53935)
+                              : Colors.black87,
+                        ),
+                      ),
+                      if (_rutaAudio != null)
+                        const Text(
+                          'Listo para enviar',
+                          style: TextStyle(fontSize: 11, color: Colors.green),
+                        ),
+                    ],
+                  ),
+                ),
+                if (_rutaAudio != null)
+                  GestureDetector(
+                    onTap: () => setState(() => _rutaAudio = null),
+                    child: const Icon(Icons.delete_outline, color: Colors.grey),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Descripción adicional
+          const Text(
+            'Descripción adicional (opcional)',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2c3e50),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -543,7 +983,11 @@ Container(
         children: [
           const Text(
             'Confirmar emergencia',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF2c3e50)),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2c3e50),
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -564,9 +1008,17 @@ Container(
             ),
             child: Column(
               children: [
-                _buildFilaResumen(Icons.directions_car, 'Vehículo', _vehiculoNombre),
+                _buildFilaResumen(
+                  Icons.directions_car,
+                  'Vehículo',
+                  _vehiculoNombre,
+                ),
                 const Divider(height: 20),
-                _buildFilaResumen(Icons.warning_amber, 'Incidente', _tipoIncidente),
+                _buildFilaResumen(
+                  Icons.warning_amber,
+                  'Incidente',
+                  _tipoIncidente,
+                ),
                 const Divider(height: 20),
                 _buildFilaResumen(
                   Icons.flag,
@@ -575,12 +1027,16 @@ Container(
                   color: _prioridad == 'alta'
                       ? const Color(0xFFE53935)
                       : _prioridad == 'media'
-                          ? Colors.orange
-                          : Colors.green,
+                      ? Colors.orange
+                      : Colors.green,
                 ),
                 if (_descripcionCtrl.text.isNotEmpty) ...[
                   const Divider(height: 20),
-                  _buildFilaResumen(Icons.notes, 'Descripción', _descripcionCtrl.text),
+                  _buildFilaResumen(
+                    Icons.notes,
+                    'Descripción',
+                    _descripcionCtrl.text,
+                  ),
                 ],
               ],
             ),
@@ -613,7 +1069,12 @@ Container(
     );
   }
 
-  Widget _buildFilaResumen(IconData icono, String label, String valor, {Color? color}) {
+  Widget _buildFilaResumen(
+    IconData icono,
+    String label,
+    String valor, {
+    Color? color,
+  }) {
     return Row(
       children: [
         Icon(icono, color: const Color(0xFF2c3e50), size: 20),
@@ -622,7 +1083,10 @@ Container(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
               Text(
                 valor,
                 style: TextStyle(
@@ -652,17 +1116,25 @@ Container(
             backgroundColor: const Color(0xFFE53935),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: _enviando
               ? const SizedBox(
                   height: 20,
                   width: 20,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
                 )
               : Text(
                   labels[_pasoActual],
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
         ),
       ),
