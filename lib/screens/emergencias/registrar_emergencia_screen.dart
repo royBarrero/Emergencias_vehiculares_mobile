@@ -142,33 +142,33 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
   }
 
   // ── Fotos ──
- Future<void> _tomarFoto() async {
-  if (_fotos.length >= 3) {
-    _mostrarError('Máximo 3 fotos');
-    return;
+  Future<void> _tomarFoto() async {
+    if (_fotos.length >= 3) {
+      _mostrarError('Máximo 3 fotos');
+      return;
+    }
+    final XFile? foto = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+    );
+    if (foto != null) {
+      setState(() => _fotos.add(foto));
+    }
   }
-  final XFile? foto = await _picker.pickImage(
-    source: ImageSource.camera,
-    imageQuality: 70,
-  );
-  if (foto != null) {
-    setState(() => _fotos.add(foto));
-  }
-}
 
-Future<void> _elegirDeGaleria() async {
-  if (_fotos.length >= 3) {
-    _mostrarError('Máximo 3 fotos');
-    return;
+  Future<void> _elegirDeGaleria() async {
+    if (_fotos.length >= 3) {
+      _mostrarError('Máximo 3 fotos');
+      return;
+    }
+    final XFile? foto = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+    if (foto != null) {
+      setState(() => _fotos.add(foto));
+    }
   }
-  final XFile? foto = await _picker.pickImage(
-    source: ImageSource.gallery,
-    imageQuality: 70,
-  );
-  if (foto != null) {
-    setState(() => _fotos.add(foto));
-  }
-}
 
   void _eliminarFoto(int index) {
     setState(() => _fotos.removeAt(index));
@@ -176,83 +176,85 @@ Future<void> _elegirDeGaleria() async {
 
   // ── Audio ──
   Future<void> _toggleGrabacion() async {
-  // El audio solo funciona en móvil
-  if (identical(0, 0.0)) {
-    _mostrarError('La grabación de audio no está disponible en web');
-    return;
-  }
-
-  if (_grabando) {
-    final ruta = await _recorder.stop();
-    setState(() {
-      _grabando = false;
-      _rutaAudio = ruta;
-    });
-  } else {
-    final permiso = await _recorder.hasPermission();
-    if (!permiso) {
-      _mostrarError('Permiso de micrófono denegado');
+    // El audio solo funciona en móvil
+    if (identical(0, 0.0)) {
+      _mostrarError('La grabación de audio no está disponible en web');
       return;
     }
-    final dir = await getTemporaryDirectory();
-    final ruta = '${dir.path}/audio_emergencia.m4a';
-    await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc),
-      path: ruta,
-    );
-    setState(() {
-      _grabando = true;
-      _rutaAudio = null;
-    });
+
+    if (_grabando) {
+      final ruta = await _recorder.stop();
+      setState(() {
+        _grabando = false;
+        _rutaAudio = ruta;
+      });
+    } else {
+      final permiso = await _recorder.hasPermission();
+      if (!permiso) {
+        _mostrarError('Permiso de micrófono denegado');
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final ruta = '${dir.path}/audio_emergencia.m4a';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: ruta,
+      );
+      setState(() {
+        _grabando = true;
+        _rutaAudio = null;
+      });
+    }
   }
-}
 
   // ── Subir evidencia al backend ──
   Future<void> _subirEvidencias(int idEmergencia) async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('token')?.trim() ?? '';
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token')?.trim() ?? '';
 
-  for (final foto in _fotos) {
-    final bytes = await foto.readAsBytes();
-    final nombreArchivo = foto.name;
+    for (final foto in _fotos) {
+      final bytes = await foto.readAsBytes();
+      final nombreArchivo = foto.name;
 
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
-    );
-    request.headers['Authorization'] = 'Bearer $token';
-    request.fields['tipo'] = 'foto';
-    request.files.add(http.MultipartFile.fromBytes(
-      'archivo',
-      bytes,
-      filename: nombreArchivo,
-    ));
-    await request.send();
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.fields['tipo'] = 'foto';
+      request.files.add(
+        http.MultipartFile.fromBytes('archivo', bytes, filename: nombreArchivo),
+      );
+      await request.send();
+    }
+
+    // Audio solo en móvil
+    if (_rutaAudio != null) {
+      try {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse(
+            '${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia',
+          ),
+        );
+        request.headers['Authorization'] = 'Bearer $token';
+        request.fields['tipo'] = 'audio';
+        // En móvil XFile funciona con path
+        final audioXFile = XFile(_rutaAudio!);
+        final audioBytes = await audioXFile.readAsBytes();
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'archivo',
+            audioBytes,
+            filename: 'audio_emergencia.m4a',
+          ),
+        );
+        await request.send();
+      } catch (e) {
+        // Si falla en web simplemente continúa
+      }
+    }
   }
-
-  // Audio solo en móvil
-if (_rutaAudio != null) {
-  try {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
-    );
-    request.headers['Authorization'] = 'Bearer $token';
-    request.fields['tipo'] = 'audio';
-    // En móvil XFile funciona con path
-    final audioXFile = XFile(_rutaAudio!);
-    final audioBytes = await audioXFile.readAsBytes();
-    request.files.add(http.MultipartFile.fromBytes(
-      'archivo',
-      audioBytes,
-      filename: 'audio_emergencia.m4a',
-    ));
-    await request.send();
-  } catch (e) {
-    // Si falla en web simplemente continúa
-  }
-}
-}
 
   void _siguientePaso() {
     if (_pasoActual == 0 && _idVehiculoSeleccionado == null) {
@@ -628,7 +630,10 @@ if (_rutaAudio != null) {
             children: _tiposIncidente.map((tipo) {
               final seleccionado = _tipoIncidente == tipo;
               return GestureDetector(
-                onTap: () => setState(() => _tipoIncidente = tipo),
+                onTap: () => setState(() {
+                  _tipoIncidente = tipo;
+                  _prioridad = _calcularPrioridad(tipo);
+                }),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,

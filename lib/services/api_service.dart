@@ -222,4 +222,58 @@ static Future<List<dynamic>?> obtenerHistorialEmergencias() async {
     return null;
   }
 }
+// Obtener detalle completo de emergencia
+static Future<Map<String, dynamic>?> obtenerDetalleEmergencia(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+static Future<List<dynamic>?> obtenerTalleresCercanos(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/talleres/cercanos/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+static Future<Map<String, dynamic>?> obtenerTecnico(int idTecnico) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/tecnicos/$idTecnico'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> obtenerTaller(int idTaller) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/talleres/$idTaller'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
 }
