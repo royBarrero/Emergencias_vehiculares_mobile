@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:emergencias_vehiculares/screens/vehiculos/vehiculos_screen.dart';
 import 'package:emergencias_vehiculares/screens/emergencias/registrar_emergencia_screen.dart';
 import 'package:emergencias_vehiculares/screens/emergencias/historial_emergencias_screen.dart';
+import 'package:emergencias_vehiculares/screens/emergencias/solicitudes_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -167,12 +169,14 @@ class _InicioTabState extends State<_InicioTab> {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                       onPressed: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const RegistrarEmergenciaScreen()),
-  );
-},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegistrarEmergenciaScreen(),
+                            ),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: const Color(0xFFE53935),
@@ -215,7 +219,14 @@ class _InicioTabState extends State<_InicioTab> {
                         icono: Icons.directions_car,
                         titulo: 'Mis Vehículos',
                         color: const Color(0xFF2c3e50),
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => VehiculosScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -224,7 +235,14 @@ class _InicioTabState extends State<_InicioTab> {
                         icono: Icons.list_alt,
                         titulo: 'Solicitudes',
                         color: const Color(0xFF2196F3),
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SolicitudesScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -238,11 +256,14 @@ class _InicioTabState extends State<_InicioTab> {
                         titulo: 'Historial',
                         color: const Color(0xFF4CAF50),
                         onTap: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const HistorialEmergenciasScreen()),
-  );
-},
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const HistorialEmergenciasScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),

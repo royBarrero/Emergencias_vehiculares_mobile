@@ -181,7 +181,10 @@ class _SeguimientoEmergenciaScreenState
         backgroundColor: const Color(0xFF2c3e50),
         foregroundColor: Colors.white,
         title: const Text('Seguimiento'),
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => Navigator.pop(context),
+    ),
       ),
       body: SingleChildScrollView(
         child: Column(

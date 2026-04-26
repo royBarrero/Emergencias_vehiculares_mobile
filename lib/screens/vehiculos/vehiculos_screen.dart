@@ -197,22 +197,18 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            color: const Color(0xFF2c3e50),
-            padding: const EdgeInsets.only(top: 60, bottom: 24, left: 24, right: 24),
-            child: const Text(
-              'Mis Vehículos',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+  backgroundColor: const Color(0xFFF5F5F5),
+  appBar: AppBar(
+    backgroundColor: const Color(0xFF2c3e50),
+    foregroundColor: Colors.white,
+    title: const Text('Mis Vehículos'),
+    leading: IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => Navigator.pop(context),
+    ),
+  ),
+  body: Column(
+    children: [
           Expanded(
             child: _cargando
                 ? const Center(child: CircularProgressIndicator())

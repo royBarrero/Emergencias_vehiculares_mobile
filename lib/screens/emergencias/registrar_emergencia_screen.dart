@@ -1,13 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'seguimiento_emergencia_screen.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:emergencias_vehiculares/services/audio_service.dart';
+import 'package:flutter/foundation.dart';
 
 class RegistrarEmergenciaScreen extends StatefulWidget {
   const RegistrarEmergenciaScreen({super.key});
@@ -33,13 +33,13 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
   final TextEditingController _descripcionCtrl = TextEditingController();
   // Fotos
   final ImagePicker _picker = ImagePicker();
-  List<XFile> _fotos = [];
+  final List<XFile> _fotos = [];
 
   // Audio
-  final AudioRecorder _recorder = AudioRecorder();
+  //final AudioRecorder _recorder = AudioRecorder();
   bool _grabando = false;
   String? _rutaAudio;
-  Duration _duracionGrabacion = Duration.zero;
+  //Duration _duracionGrabacion = Duration.zero;
 
   // Vehículos del conductor
   List<dynamic> _vehiculos = [];
@@ -175,86 +175,96 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
   }
 
   // ── Audio ──
-  Future<void> _toggleGrabacion() async {
-    // El audio solo funciona en móvil
-    if (identical(0, 0.0)) {
-      _mostrarError('La grabación de audio no está disponible en web');
+ Future<void> _toggleGrabacion() async {
+  if (_grabando) {
+    final ruta = await AudioService.detener();
+    setState(() {
+      _grabando = false;
+      _rutaAudio = ruta;
+    });
+  } else {
+    final permiso = await AudioService.tienePermiso();
+    if (!permiso) {
+      _mostrarError('Permiso de micrófono denegado');
       return;
     }
 
-    if (_grabando) {
-      final ruta = await _recorder.stop();
-      setState(() {
-        _grabando = false;
-        _rutaAudio = ruta;
-      });
-    } else {
-      final permiso = await _recorder.hasPermission();
-      if (!permiso) {
-        _mostrarError('Permiso de micrófono denegado');
-        return;
-      }
+    String ruta = 'audio_web';
+    if (!kIsWeb) {
       final dir = await getTemporaryDirectory();
-      final ruta = '${dir.path}/audio_emergencia.m4a';
-      await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
-        path: ruta,
-      );
-      setState(() {
-        _grabando = true;
-        _rutaAudio = null;
-      });
+      ruta = '${dir.path}/audio_emergencia.m4a';
     }
-  }
 
+    await AudioService.iniciar(ruta);
+    setState(() {
+      _grabando = true;
+      _rutaAudio = null;
+    });
+  }
+}
   // ── Subir evidencia al backend ──
   Future<void> _subirEvidencias(int idEmergencia) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token')?.trim() ?? '';
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token')?.trim() ?? '';
 
-    for (final foto in _fotos) {
-      final bytes = await foto.readAsBytes();
-      final nombreArchivo = foto.name;
+  for (final foto in _fotos) {
+    final bytes = await foto.readAsBytes();
+    final nombreArchivo = foto.name;
 
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
-      );
-      request.headers['Authorization'] = 'Bearer $token';
-      request.fields['tipo'] = 'foto';
-      request.files.add(
-        http.MultipartFile.fromBytes('archivo', bytes, filename: nombreArchivo),
-      );
-      await request.send();
-    }
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['tipo'] = 'foto';
+    request.files.add(http.MultipartFile.fromBytes(
+      'archivo',
+      bytes,
+      filename: nombreArchivo,
+    ));
+    await request.send();
+  }
 
-    // Audio solo en móvil
-    if (_rutaAudio != null) {
-      try {
+  if (_rutaAudio != null) {
+    try {
+      if (kIsWeb) {
+        // En web el audio es una URL blob
+        final response = await http.get(Uri.parse(_rutaAudio!));
+        final bytes = response.bodyBytes;
         final request = http.MultipartRequest(
           'POST',
-          Uri.parse(
-            '${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia',
-          ),
+          Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
         );
         request.headers['Authorization'] = 'Bearer $token';
         request.fields['tipo'] = 'audio';
-        // En móvil XFile funciona con path
-        final audioXFile = XFile(_rutaAudio!);
-        final audioBytes = await audioXFile.readAsBytes();
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'archivo',
-            audioBytes,
-            filename: 'audio_emergencia.m4a',
-          ),
-        );
+        request.files.add(http.MultipartFile.fromBytes(
+          'archivo',
+          bytes,
+          filename: 'audio_emergencia.webm',
+        ));
         await request.send();
-      } catch (e) {
-        // Si falla en web simplemente continúa
+      } else {
+        // En móvil usar XFile
+        final audioXFile = XFile(_rutaAudio!);
+        final bytes = await audioXFile.readAsBytes();
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${ApiService.baseUrl}/emergencias/$idEmergencia/evidencia'),
+        );
+        request.headers['Authorization'] = 'Bearer $token';
+        request.fields['tipo'] = 'audio';
+        request.files.add(http.MultipartFile.fromBytes(
+          'archivo',
+          bytes,
+          filename: 'audio_emergencia.m4a',
+        ));
+        await request.send();
       }
+    } catch (e) {
+      print('Error subiendo audio: $e');
     }
   }
+}
 
   void _siguientePaso() {
     if (_pasoActual == 0 && _idVehiculoSeleccionado == null) {
