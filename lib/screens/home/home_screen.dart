@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:emergencias_vehiculares/screens/vehiculos/vehiculos_screen.dart';
+import 'package:emergencias_vehiculares/screens/emergencias/registrar_emergencia_screen.dart';
+import 'package:emergencias_vehiculares/screens/emergencias/historial_emergencias_screen.dart';
+import 'package:emergencias_vehiculares/screens/emergencias/solicitudes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,10 +34,22 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: const Color(0xFF2c3e50),
         unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.directions_car_outlined), label: 'Vehículos'),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Solicitudes'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Perfil'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            label: 'Inicio',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.directions_car_outlined),
+            label: 'Vehículos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.list_alt_outlined),
+            label: 'Solicitudes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Perfil',
+          ),
         ],
       ),
     );
@@ -74,7 +89,12 @@ class _InicioTabState extends State<_InicioTab> {
           Container(
             width: double.infinity,
             color: const Color(0xFF2c3e50),
-            padding: const EdgeInsets.only(top: 60, bottom: 32, left: 24, right: 24),
+            padding: const EdgeInsets.only(
+              top: 60,
+              bottom: 32,
+              left: 24,
+              right: 24,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -98,14 +118,13 @@ class _InicioTabState extends State<_InicioTab> {
                         ),
                       ],
                     ),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Colors.white24,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.person, color: Colors.white),
+                    IconButton(
+                      onPressed: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.clear();
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
+                      icon: const Icon(Icons.logout, color: Colors.white),
                     ),
                   ],
                 ),
@@ -128,7 +147,11 @@ class _InicioTabState extends State<_InicioTab> {
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 48),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.white,
+                        size: 48,
+                      ),
                       const SizedBox(height: 12),
                       const Text(
                         '¡Reportar Emergencia!',
@@ -146,18 +169,31 @@ class _InicioTabState extends State<_InicioTab> {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegistrarEmergenciaScreen(),
+                            ),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: const Color(0xFFE53935),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
                         ),
                         child: const Text(
                           'Solicitar ayuda',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ],
@@ -183,7 +219,14 @@ class _InicioTabState extends State<_InicioTab> {
                         icono: Icons.directions_car,
                         titulo: 'Mis Vehículos',
                         color: const Color(0xFF2c3e50),
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => VehiculosScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -192,7 +235,14 @@ class _InicioTabState extends State<_InicioTab> {
                         icono: Icons.list_alt,
                         titulo: 'Solicitudes',
                         color: const Color(0xFF2196F3),
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SolicitudesScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -205,7 +255,15 @@ class _InicioTabState extends State<_InicioTab> {
                         icono: Icons.history,
                         titulo: 'Historial',
                         color: const Color(0xFF4CAF50),
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const HistorialEmergenciasScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -251,10 +309,7 @@ class _TarjetaAcceso extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
           ],
         ),
         child: Row(
@@ -300,9 +355,7 @@ class _SolicitudesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Solicitudes — próximamente'),
-    );
+    return const Center(child: Text('Solicitudes — próximamente'));
   }
 }
 
@@ -312,8 +365,6 @@ class _PerfilTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Perfil — próximamente'),
-    );
+    return const Center(child: Text('Perfil — próximamente'));
   }
 }

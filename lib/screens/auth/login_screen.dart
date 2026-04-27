@@ -27,14 +27,12 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _cargando = false);
 
       if (respuesta != null) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Correo o contraseña incorrectos'),
-            backgroundColor: Color(0xFF2c3e50),
-          ),
-        );
+        final idRol = respuesta['id_rol'];
+        if (idRol == 3) {
+          Navigator.pushReplacementNamed(context, '/tecnico-home');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
       }
     }
   }
@@ -52,7 +50,12 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 width: double.infinity,
                 color: const Color(0xFF2c3e50),
-                padding: const EdgeInsets.only(top: 80, bottom: 64, left: 32, right: 32),
+                padding: const EdgeInsets.only(
+                  top: 80,
+                  bottom: 64,
+                  left: 32,
+                  right: 32,
+                ),
                 child: Column(
                   children: [
                     Container(
@@ -80,10 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 4),
                     const Text(
                       'Asistencia vehicular al instante',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
                 ),
@@ -124,7 +124,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           hintText: 'correo@ejemplo.com',
-                          prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF2c3e50)),
+                          prefixIcon: const Icon(
+                            Icons.email_outlined,
+                            color: Color(0xFF2c3e50),
+                          ),
                           filled: true,
                           fillColor: const Color(0xFFF5F5F5),
                           border: OutlineInputBorder(
@@ -133,11 +136,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF2c3e50)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF2c3e50),
+                            ),
                           ),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) return 'Ingresa tu correo';
+                          if (value == null || value.isEmpty)
+                            return 'Ingresa tu correo';
                           if (!value.contains('@')) return 'Correo no válido';
                           return null;
                         },
@@ -150,13 +156,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: _obscurePassword,
                         decoration: InputDecoration(
                           hintText: '••••••••',
-                          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF2c3e50)),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: Color(0xFF2c3e50),
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                               color: Colors.grey,
                             ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                           ),
                           filled: true,
                           fillColor: const Color(0xFFF5F5F5),
@@ -166,11 +179,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF2c3e50)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF2c3e50),
+                            ),
                           ),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) return 'Ingresa tu contraseña';
+                          if (value == null || value.isEmpty)
+                            return 'Ingresa tu contraseña';
                           if (value.length < 6) return 'Mínimo 6 caracteres';
                           return null;
                         },
@@ -181,10 +197,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () => Navigator.pushNamed(context, '/recuperar'),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/recuperar'),
                           child: const Text(
                             '¿Olvidaste tu contraseña?',
-                            style: TextStyle(color: Color(0xFF2c3e50), fontSize: 13),
+                            style: TextStyle(
+                              color: Color(0xFF2c3e50),
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
@@ -203,10 +223,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           child: _cargando
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
                               : const Text(
                                   'Iniciar sesión',
-                                  style: TextStyle(fontSize: 16, color: Colors.white),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ),
@@ -216,10 +241,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('¿No tienes cuenta? ',
-                              style: TextStyle(color: Colors.grey, fontSize: 13)),
+                          const Text(
+                            '¿No tienes cuenta? ',
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          ),
                           GestureDetector(
-                            onTap: () => Navigator.pushNamed(context, '/registro'),
+                            onTap: () =>
+                                Navigator.pushNamed(context, '/registro'),
                             child: const Text(
                               'Regístrate',
                               style: TextStyle(

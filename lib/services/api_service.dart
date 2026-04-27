@@ -166,4 +166,206 @@ static Future<Map<String, dynamic>?> actualizarVehiculo(
     return null;
   }
 }
+// ── EMERGENCIAS ────────────────────────────────────────────────
+
+static Future<String?> _getToken() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  return token?.trim(); // trim elimina saltos de línea y espacios
+}
+
+// CU08 — Registrar emergencia
+static Future<Map<String, dynamic>?> registrarEmergencia(Map<String, dynamic> datos) async {
+  try {
+    final token = await _getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/emergencias/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(datos),
+    );
+    if (response.statusCode == 201) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// CU19 — Obtener estado de emergencia
+static Future<Map<String, dynamic>?> obtenerEstadoEmergencia(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/$idEmergencia/estado'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// CU22 — Historial de emergencias
+static Future<List<dynamic>?> obtenerHistorialEmergencias() async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/conductor/historial'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+// Obtener detalle completo de emergencia
+static Future<Map<String, dynamic>?> obtenerDetalleEmergencia(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+static Future<List<dynamic>?> obtenerTalleresCercanos(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/talleres/cercanos/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+static Future<Map<String, dynamic>?> obtenerTecnico(int idTecnico) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/tecnicos/$idTecnico'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> obtenerTaller(int idTaller) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/talleres/$idTaller'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+static Future<Map<String, dynamic>?> obtenerTecnicoPorUsuario(int idUsuario) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/tecnicos/por-usuario/$idUsuario'),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> obtenerEmergenciaTecnico(int idTecnico) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/tecnico/$idTecnico'),
+      headers: {
+  'Authorization': 'Bearer $token',
+  'Content-Type': 'application/json',
+},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<bool> actualizarEstadoEmergencia(int idEmergencia, Map<String, dynamic> datos) async {
+  try {
+    final token = await _getToken();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/emergencias/$idEmergencia'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(datos),
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    return false;
+  }
+}
+static Future<List<dynamic>?> obtenerEmergenciasTecnico(int idTecnico) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/tecnico/$idTecnico/historial'),
+      headers: {
+  'Authorization': 'Bearer $token',
+  'Content-Type': 'application/json',
+},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+static Future<Map<String, dynamic>?> registrarPago(Map<String, dynamic> datos) async {
+  try {
+    final token = await _getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/pagos/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(datos),
+    );
+    if (response.statusCode == 201) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> obtenerPagoEmergencia(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/pagos/emergencia/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
 }
