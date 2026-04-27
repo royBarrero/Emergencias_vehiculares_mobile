@@ -259,6 +259,7 @@ class _DetalleEmergenciaSheetState extends State<_DetalleEmergenciaSheet> {
   Map<String, dynamic>? _detalle;
   Map<String, dynamic>? _taller;
   Map<String, dynamic>? _tecnico;
+  Map<String, dynamic>? _pago;
   bool _cargando = true;
 
   @override
@@ -274,6 +275,7 @@ class _DetalleEmergenciaSheetState extends State<_DetalleEmergenciaSheet> {
     if (mounted && data != null) {
       Map<String, dynamic>? taller;
       Map<String, dynamic>? tecnico;
+      Map<String, dynamic>? pago;
 
       if (data['id_taller'] != null) {
         taller = await ApiService.obtenerTaller(data['id_taller']);
@@ -281,11 +283,15 @@ class _DetalleEmergenciaSheetState extends State<_DetalleEmergenciaSheet> {
       if (data['id_tecnico'] != null) {
         tecnico = await ApiService.obtenerTecnico(data['id_tecnico']);
       }
+      if (data['estado'] == 'finalizada') {
+        pago = await ApiService.obtenerPagoEmergencia(data['id_emergencia']);
+      }
 
       setState(() {
         _detalle = data;
         _taller = taller;
         _tecnico = tecnico;
+        _pago = pago;
         _cargando = false;
       });
     } else {
@@ -428,46 +434,99 @@ class _DetalleEmergenciaSheetState extends State<_DetalleEmergenciaSheet> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Monto del servicio',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
+                        if (_pago != null) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Monto pagado',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'A coordinar con el taller',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                              Text(
+                                'Bs. ${_pago!['monto_total']}',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2c3e50),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 16),
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Estado del pago',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Método de pago',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Pendiente de confirmación',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.orange,
+                              Text(
+                                _pago!['metodo_pago'].toString().toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Estado',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'Completado',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Monto del servicio',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Text(
+                                'A coordinar con el taller',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),

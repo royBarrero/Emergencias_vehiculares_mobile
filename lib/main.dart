@@ -3,6 +3,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/auth/recuperar_screen.dart';
+import 'screens/tecnico/tecnico_home_screen.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/registro': (context) => const RegisterScreen(),
         '/recuperar': (context) => const RecuperarScreen(),
+        '/tecnico-home': (context) => const TecnicoHomeScreen(),
       },
     );
   }

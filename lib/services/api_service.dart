@@ -276,4 +276,96 @@ static Future<Map<String, dynamic>?> obtenerTaller(int idTaller) async {
     return null;
   }
 }
+static Future<Map<String, dynamic>?> obtenerTecnicoPorUsuario(int idUsuario) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/tecnicos/por-usuario/$idUsuario'),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> obtenerEmergenciaTecnico(int idTecnico) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/tecnico/$idTecnico'),
+      headers: {
+  'Authorization': 'Bearer $token',
+  'Content-Type': 'application/json',
+},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<bool> actualizarEstadoEmergencia(int idEmergencia, Map<String, dynamic> datos) async {
+  try {
+    final token = await _getToken();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/emergencias/$idEmergencia'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(datos),
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    return false;
+  }
+}
+static Future<List<dynamic>?> obtenerEmergenciasTecnico(int idTecnico) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/emergencias/tecnico/$idTecnico/historial'),
+      headers: {
+  'Authorization': 'Bearer $token',
+  'Content-Type': 'application/json',
+},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+static Future<Map<String, dynamic>?> registrarPago(Map<String, dynamic> datos) async {
+  try {
+    final token = await _getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/pagos/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(datos),
+    );
+    if (response.statusCode == 201) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> obtenerPagoEmergencia(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/pagos/emergencia/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
 }
