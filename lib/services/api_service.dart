@@ -16,7 +16,8 @@ class ApiService {
         'contrasena': contrasena,
       }),
     );
-
+    print('STATUS LOGIN: ${response.statusCode}');
+    print('BODY LOGIN: ${response.body}');
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       
@@ -31,6 +32,7 @@ class ApiService {
     }
     return null;
   } catch (e) {
+    print('ERROR LOGIN: $e');
     return null;
   }
 }

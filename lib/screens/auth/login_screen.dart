@@ -29,13 +29,20 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _cargando = false);
 
       if (respuesta != null) {
-        final idRol = respuesta['id_rol'];
-        if (idRol == 3) {
-          Navigator.pushReplacementNamed(context, '/tecnico-home');
-        } else {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      }
+  final idRol = respuesta['id_rol'];
+  if (idRol == 3) {
+    Navigator.pushReplacementNamed(context, '/tecnico-home');
+  } else {
+    Navigator.pushReplacementNamed(context, '/home');
+  }
+} else {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Correo o contraseña incorrectos'),
+      backgroundColor: Color(0xFFE53935),
+    ),
+  );
+}
     }
   }
 
