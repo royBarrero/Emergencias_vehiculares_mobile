@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'cotizacion_screen.dart';
 
 class SeguimientoEmergenciaScreen extends StatefulWidget {
   final int idEmergencia;
@@ -92,6 +93,9 @@ class _SeguimientoEmergenciaScreenState
       });
       if (detalle['id_tecnico'] != null) {
         _cargarTecnicoYTaller(detalle['id_tecnico'], detalle['id_taller']);
+      } else if (detalle['id_taller'] != null) {
+        final taller = await ApiService.obtenerTaller(detalle['id_taller']);
+        if (mounted) setState(() => _tallerAsignado = taller);
       }
     }
 
@@ -653,7 +657,35 @@ class _SeguimientoEmergenciaScreenState
                 ),
               ),
             ],
-
+// Botón solicitar cotización cuando taller está asignado
+if (_estado == 'asignada' && _tallerAsignado != null)
+  Padding(
+    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+    child: SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CotizacionScreen(
+              idEmergencia: widget.idEmergencia,
+              idTaller: _tallerAsignado!['id_taller'],
+              nombreTaller: _tallerAsignado!['nombre_taller'] ?? 'Taller asignado',
+            ),
+          ),
+        ),
+        icon: const Icon(Icons.request_quote),
+        label: const Text('Solicitar cotización',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE53935),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    ),
+  ),
             // Botón volver cuando finaliza
             if (_estado == 'finalizada' || _estado == 'cancelada')
               Padding(

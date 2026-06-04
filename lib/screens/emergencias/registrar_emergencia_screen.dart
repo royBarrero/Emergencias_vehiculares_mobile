@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'seguimiento_emergencia_screen.dart';
+import 'seleccionar_taller_screen.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:emergencias_vehiculares/services/audio_service.dart';
 import 'package:flutter/foundation.dart';
@@ -325,16 +326,16 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
     final resultado = await ApiService.registrarEmergencia(datos);
 
     if (resultado != null) {
-      await _subirEvidencias(resultado['id_emergencia']);
-      setState(() => _enviando = false);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SeguimientoEmergenciaScreen(
-            idEmergencia: resultado['id_emergencia'],
-          ),
-        ),
-      );
+  await _subirEvidencias(resultado['id_emergencia']);
+  setState(() => _enviando = false);
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => SeleccionarTallerScreen(
+        idEmergencia: resultado['id_emergencia'],
+      ),
+    ),
+  );
     } else {
       setState(() => _enviando = false);
       _mostrarError('Error al registrar la emergencia. Intenta de nuevo.');
