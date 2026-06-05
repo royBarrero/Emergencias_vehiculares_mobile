@@ -26,6 +26,7 @@ class _SeguimientoEmergenciaScreenState
   bool _cargandoMapa = true;
   Map<String, dynamic>? _tecnico;
   Map<String, dynamic>? _tallerAsignado;
+  String? _tiempoEstimado;
 
   final Map<String, Map<String, dynamic>> _estadosInfo = {
     'pendiente': {
@@ -87,10 +88,11 @@ class _SeguimientoEmergenciaScreenState
     );
     if (detalle != null && mounted) {
       setState(() {
-        _latEmergencia = detalle['latitud']?.toDouble();
-        _lngEmergencia = detalle['longitud']?.toDouble();
-        _estado = detalle['estado'] ?? 'pendiente';
-      });
+  _latEmergencia = detalle['latitud']?.toDouble();
+  _lngEmergencia = detalle['longitud']?.toDouble();
+  _estado = detalle['estado'] ?? 'pendiente';
+  _tiempoEstimado = detalle['tiempo_estimado_reparacion'];
+});
       if (detalle['id_tecnico'] != null) {
         _cargarTecnicoYTaller(detalle['id_tecnico'], detalle['id_taller']);
       } else if (detalle['id_taller'] != null) {
@@ -126,7 +128,10 @@ class _SeguimientoEmergenciaScreenState
   void _consultarEstado() async {
     final data = await ApiService.obtenerEstadoEmergencia(widget.idEmergencia);
     if (data != null && mounted) {
-      setState(() => _estado = data['estado']);
+      setState(() {
+  _estado = data['estado'];
+  _tiempoEstimado = data['tiempo_estimado_reparacion'] ?? _tiempoEstimado;
+});
 
       if (_estado == 'en_camino' && _tecnico == null) {
         final detalle = await ApiService.obtenerDetalleEmergencia(
@@ -492,7 +497,45 @@ class _SeguimientoEmergenciaScreenState
                   ),
                 ),
             ],
-
+            // CU30: Tiempo estimado de reparación
+const SizedBox(height: 12),
+FutureBuilder<Map<String, dynamic>?>(
+  future: ApiService.obtenerDetalleEmergencia(widget.idEmergencia),
+  builder: (context, snapshot) {
+    final tiempo = snapshot.data?['tiempo_estimado_reparacion'];
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time, color: Colors.orange, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Tiempo estimado de reparación',
+                    style: TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                  tiempo ?? 'Por confirmar',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: tiempo != null ? Colors.orange.shade800 : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+),
             // Mapa talleres cercanos cuando está pendiente
             if (_estado == 'pendiente' || _estado == 'buscando_taller') ...[
               Container(
