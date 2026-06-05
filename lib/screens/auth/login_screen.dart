@@ -16,9 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _cargando = false;
 
   void _login() async {
-    print('LOGIN PRESIONADO'); // ← agregar
     if (_formKey.currentState!.validate()) {
-      print('FORMULARIO VALIDO'); // ← agregar
       setState(() => _cargando = true);
 
       final respuesta = await ApiService.login(

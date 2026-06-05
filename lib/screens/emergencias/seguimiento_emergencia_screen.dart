@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:convert';
 
 class SeguimientoEmergenciaScreen extends StatefulWidget {
   final int idEmergencia;
@@ -18,7 +20,7 @@ class SeguimientoEmergenciaScreen extends StatefulWidget {
 class _SeguimientoEmergenciaScreenState
     extends State<SeguimientoEmergenciaScreen> {
   String _estado = 'pendiente';
-  Timer? _timer;
+  WebSocketChannel? _wsChannel;
   List<dynamic> _talleresCercanos = [];
   double? _latEmergencia;
   double? _lngEmergencia;
@@ -68,15 +70,44 @@ class _SeguimientoEmergenciaScreenState
   void initState() {
     super.initState();
     _cargarDatosIniciales();
-    _timer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => _consultarEstado(),
-    );
+    _cargarDatosIniciales();
+    _conectarWebSocket();
   }
+void _conectarWebSocket() {
+  final wsUrl = Uri.parse(
+    'ws://127.0.0.1:8000/ws/emergencia/${widget.idEmergencia}'
+  );
+  _wsChannel = WebSocketChannel.connect(wsUrl);
+  _wsChannel!.stream.listen(
+    (mensaje) {
+      final data = jsonDecode(mensaje);
+      if (!mounted) return;
+      setState(() => _estado = data['estado']);
 
+      if (data['estado'] == 'en_camino' && _tecnico == null) {
+        _cargarTecnicoYTaller(data['id_tecnico'], data['id_taller']);
+      }
+      if (data['estado'] == 'finalizada') {
+        Future.delayed(const Duration(seconds: 1), _mostrarCalificacion);
+        _wsChannel?.sink.close();
+      }
+      if (data['estado'] == 'cancelada') {
+        _wsChannel?.sink.close();
+      }
+    },
+    onError: (error) {
+      Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+    },
+    onDone: () {
+      if (_estado != 'finalizada' && _estado != 'cancelada') {
+        Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+      }
+    },
+  );
+}
   @override
   void dispose() {
-    _timer?.cancel();
+   _wsChannel?.sink.close();
     super.dispose();
   }
 
@@ -116,31 +147,6 @@ class _SeguimientoEmergenciaScreenState
         _tecnico = tecnico;
         _tallerAsignado = taller;
       });
-    }
-  }
-
-  void _consultarEstado() async {
-    final data = await ApiService.obtenerEstadoEmergencia(widget.idEmergencia);
-    if (data != null && mounted) {
-      final estadoAnterior = _estado;
-      setState(() => _estado = data['estado']);
-
-      if (_estado == 'en_camino' && _tecnico == null) {
-        final detalle = await ApiService.obtenerDetalleEmergencia(
-          widget.idEmergencia,
-        );
-        if (detalle != null && detalle['id_tecnico'] != null) {
-          _cargarTecnicoYTaller(detalle['id_tecnico'], detalle['id_taller']);
-        }
-      }
-    if (_estado == 'finalizada' && estadoAnterior != 'finalizada') {
-      Future.delayed(const Duration(seconds: 1), () {
-        _mostrarCalificacion();
-      });
-    }
-      if (_estado == 'finalizada' || _estado == 'cancelada') {
-        _timer?.cancel();
-      }
     }
   }
 
