@@ -199,14 +199,14 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     return Scaffold(
   backgroundColor: const Color(0xFFF5F5F5),
   appBar: AppBar(
-    backgroundColor: const Color(0xFF2c3e50),
-    foregroundColor: Colors.white,
-    title: const Text('Mis Vehículos'),
-    leading: IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () => Navigator.pop(context),
-    ),
+  backgroundColor: const Color(0xFF2c3e50),
+  foregroundColor: Colors.white,
+  title: const Text('Mis Vehículos'),
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back),
+    onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
   ),
+),
   body: Column(
     children: [
           Expanded(

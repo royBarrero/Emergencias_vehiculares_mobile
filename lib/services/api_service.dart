@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  /*static const String baseUrl = 'https://emergencias-vehiculares-api.onrender.com';*/
-  static const String baseUrl = 'http://localhost:8000';
+static const String baseUrl = 'http://localhost:8000';
 
   // LOGIN
  static Future<Map<String, dynamic>?> login(String correo, String contrasena) async {
@@ -17,7 +16,8 @@ class ApiService {
         'contrasena': contrasena,
       }),
     );
-
+    print('STATUS LOGIN: ${response.statusCode}');
+    print('BODY LOGIN: ${response.body}');
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       
@@ -32,6 +32,7 @@ class ApiService {
     }
     return null;
   } catch (e) {
+    print('ERROR LOGIN: $e');
     return null;
   }
 }

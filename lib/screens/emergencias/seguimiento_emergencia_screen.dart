@@ -5,7 +5,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+<<<<<<< HEAD
 import 'cotizacion_screen.dart';
+=======
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:convert';
+>>>>>>> origin/devRoy
 
 class SeguimientoEmergenciaScreen extends StatefulWidget {
   final int idEmergencia;
@@ -19,7 +24,7 @@ class SeguimientoEmergenciaScreen extends StatefulWidget {
 class _SeguimientoEmergenciaScreenState
     extends State<SeguimientoEmergenciaScreen> {
   String _estado = 'pendiente';
-  Timer? _timer;
+  WebSocketChannel? _wsChannel;
   List<dynamic> _talleresCercanos = [];
   double? _latEmergencia;
   double? _lngEmergencia;
@@ -70,15 +75,44 @@ class _SeguimientoEmergenciaScreenState
   void initState() {
     super.initState();
     _cargarDatosIniciales();
-    _timer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => _consultarEstado(),
-    );
+    _cargarDatosIniciales();
+    _conectarWebSocket();
   }
+void _conectarWebSocket() {
+  final wsUrl = Uri.parse(
+    'ws://127.0.0.1:8000/ws/emergencia/${widget.idEmergencia}'
+  );
+  _wsChannel = WebSocketChannel.connect(wsUrl);
+  _wsChannel!.stream.listen(
+    (mensaje) {
+      final data = jsonDecode(mensaje);
+      if (!mounted) return;
+      setState(() => _estado = data['estado']);
 
+      if (data['estado'] == 'en_camino' && _tecnico == null) {
+        _cargarTecnicoYTaller(data['id_tecnico'], data['id_taller']);
+      }
+      if (data['estado'] == 'finalizada') {
+        Future.delayed(const Duration(seconds: 1), _mostrarCalificacion);
+        _wsChannel?.sink.close();
+      }
+      if (data['estado'] == 'cancelada') {
+        _wsChannel?.sink.close();
+      }
+    },
+    onError: (error) {
+      Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+    },
+    onDone: () {
+      if (_estado != 'finalizada' && _estado != 'cancelada') {
+        Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+      }
+    },
+  );
+}
   @override
   void dispose() {
-    _timer?.cancel();
+   _wsChannel?.sink.close();
     super.dispose();
   }
 
@@ -125,6 +159,7 @@ class _SeguimientoEmergenciaScreenState
     }
   }
 
+<<<<<<< HEAD
   void _consultarEstado() async {
     final data = await ApiService.obtenerEstadoEmergencia(widget.idEmergencia);
     if (data != null && mounted) {
@@ -148,6 +183,8 @@ class _SeguimientoEmergenciaScreenState
     }
   }
 
+=======
+>>>>>>> origin/devRoy
   double _calcularDistancia(
     double lat1,
     double lng1,
@@ -178,7 +215,76 @@ class _SeguimientoEmergenciaScreenState
     final uri = Uri.parse('tel:${_tecnico!['telefono']}');
     if (await canLaunchUrl(uri)) launchUrl(uri);
   }
+  void _mostrarCalificacion() {
+  int _estrellas = 0;
 
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🎉', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 12),
+            const Text('¡Servicio completado!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600,
+                    color: Color(0xFF2c3e50))),
+            const SizedBox(height: 8),
+            const Text('¿Cómo calificarías el servicio?',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (index) {
+                return GestureDetector(
+                  onTap: () => setDialogState(() => _estrellas = index + 1),
+                  child: Icon(
+                    index < _estrellas ? Icons.star : Icons.star_border,
+                    color: const Color(0xFFFFB300),
+                    size: 36,
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _estrellas == 0 ? 'Toca para calificar' :
+              _estrellas == 1 ? 'Malo' :
+              _estrellas == 2 ? 'Regular' :
+              _estrellas == 3 ? 'Bueno' :
+              _estrellas == 4 ? 'Muy bueno' : '¡Excelente!',
+              style: TextStyle(
+                fontSize: 13,
+                color: _estrellas == 0 ? Colors.grey : const Color(0xFFFFB300),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _estrellas == 0 ? null : () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2c3e50),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                disabledBackgroundColor: Colors.grey.shade300,
+              ),
+              child: const Text('Enviar calificación'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     final info = _estadosInfo[_estado] ?? _estadosInfo['pendiente']!;
