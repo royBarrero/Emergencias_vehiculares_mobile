@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "597509309669",
+    "project_id": "emergenciasvial",
+    "storage_bucket": "emergenciasvial.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597509309669:android:da917f1e067b040b8ac00c",
+        "android_client_info": {
+          "package_name": "com.example.emergencias_vehiculares"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-RusEPVRjOnUFStQW6SBU4s0p0f1QhVI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

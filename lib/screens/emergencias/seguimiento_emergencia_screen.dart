@@ -73,13 +73,18 @@ class _SeguimientoEmergenciaScreenState
     _cargarDatosIniciales();
     _conectarWebSocket();
   }
+int _intentosReconexion = 0;
+
 void _conectarWebSocket() {
+  if (_intentosReconexion > 5) return; // máximo 5 reintentos
+  
   final wsUrl = Uri.parse(
-    'ws://127.0.0.1:8000/ws/emergencia/${widget.idEmergencia}'
+    'ws://192.168.1.10:8000/ws/emergencia/${widget.idEmergencia}'
   );
   _wsChannel = WebSocketChannel.connect(wsUrl);
   _wsChannel!.stream.listen(
     (mensaje) {
+      _intentosReconexion = 0; // resetear al recibir mensaje
       final data = jsonDecode(mensaje);
       if (!mounted) return;
       setState(() => _estado = data['estado']);
@@ -96,11 +101,17 @@ void _conectarWebSocket() {
       }
     },
     onError: (error) {
-      Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+      _intentosReconexion++;
+      if (_intentosReconexion <= 5) {
+        Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+      }
     },
     onDone: () {
       if (_estado != 'finalizada' && _estado != 'cancelada') {
-        Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+        _intentosReconexion++;
+        if (_intentosReconexion <= 5) {
+          Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+        }
       }
     },
   );

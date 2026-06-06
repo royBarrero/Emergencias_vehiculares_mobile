@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  //static const String baseUrl = 'http://127.0.0.1:8000';
+  static const String baseUrl = 'http://192.168.1.10:8000';
 
   // LOGIN
  static Future<Map<String, dynamic>?> login(String correo, String contrasena) async {
@@ -368,6 +369,19 @@ static Future<Map<String, dynamic>?> obtenerPagoEmergencia(int idEmergencia) asy
     return null;
   } catch (e) {
     return null;
+  }
+}
+
+static Future<void> actualizarFcmToken(int idConductor, String fcmToken) async {
+  try {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/conductores/$idConductor/fcm-token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'fcm_token': fcmToken}),
+    );
+    print('FCM token actualizado: ${response.statusCode}');
+  } catch (e) {
+    print('Error actualizando FCM token: $e');
   }
 }
 }
