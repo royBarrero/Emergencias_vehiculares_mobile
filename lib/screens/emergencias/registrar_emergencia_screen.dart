@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'seguimiento_emergencia_screen.dart';
+import 'seleccionar_taller_screen.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:emergencias_vehiculares/services/audio_service.dart';
 import 'package:flutter/foundation.dart';
@@ -76,7 +77,7 @@ void _verificarConexion() async {
 
 void _escucharConexion() {
   Connectivity().onConnectivityChanged.listen((result) {
-    final sinConexion = result == ConnectivityResult.none;
+   final sinConexion = result.contains(ConnectivityResult.none);
     setState(() => _modoOffline = sinConexion);
     if (!sinConexion) {
       _sincronizarPendientes();
@@ -409,7 +410,7 @@ void _sincronizarPendientes() async {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => SeguimientoEmergenciaScreen(
+        builder: (_) => SeleccionarTallerScreen(
           idEmergencia: resultado['id_emergencia'],
         ),
       ),
@@ -419,7 +420,6 @@ void _sincronizarPendientes() async {
     _mostrarError('Error al registrar la emergencia.');
   }
 }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

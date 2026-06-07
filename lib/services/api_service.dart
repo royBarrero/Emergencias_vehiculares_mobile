@@ -3,9 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  //static const String baseUrl = 'http://127.0.0.1:8000';
-  static const String baseUrl = 'http://192.168.1.10:8000';
-
+static const String baseUrl = 'http://192.168.1.10:8000';
   // LOGIN
  static Future<Map<String, dynamic>?> login(String correo, String contrasena) async {
   try {
@@ -174,9 +172,9 @@ static Future<Map<String, dynamic>?> actualizarVehiculo(
 static Future<String?> _getToken() async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token');
-  return token?.trim(); // trim elimina saltos de línea y espacios
+  if (token == null) return null;
+  return token.trim().replaceAll('\n', '').replaceAll('\r', '');
 }
-
 // CU08 — Registrar emergencia
 static Future<Map<String, dynamic>?> registrarEmergencia(Map<String, dynamic> datos) async {
   try {
@@ -369,6 +367,90 @@ static Future<Map<String, dynamic>?> obtenerPagoEmergencia(int idEmergencia) asy
     return null;
   } catch (e) {
     return null;
+  }
+}
+static Future<bool> seleccionarTaller(int idEmergencia, int idTaller) async {
+  try {
+    final token = await _getToken();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/emergencias/$idEmergencia'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'id_taller': idTaller,
+        'estado': 'asignada',
+      }),
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    return false;
+  }
+}
+
+static Future<Map<String, dynamic>?> solicitarCotizacion(int idEmergencia, int idTaller) async {
+  try {
+    final token = await _getToken();
+    final response = await http.post(
+      Uri.parse('$baseUrl/cotizaciones/solicitar'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'id_emergencia': idEmergencia,
+        'id_taller': idTaller,
+      }),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> obtenerCotizacion(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/cotizaciones/emergencia/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+static Future<bool> decidirCotizacion(int idCotizacion, String accion) async {
+  try {
+    final token = await _getToken();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/cotizaciones/$idCotizacion/decision'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'accion': accion}),
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    return false;
+  }
+}
+
+static Future<bool> limpiarCotizaciones(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/cotizaciones/emergencia/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    return false;
   }
 }
 
