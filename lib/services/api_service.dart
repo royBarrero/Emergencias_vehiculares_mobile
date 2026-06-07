@@ -173,9 +173,9 @@ static Future<Map<String, dynamic>?> actualizarVehiculo(
 static Future<String?> _getToken() async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token');
-  return token?.trim(); // trim elimina saltos de línea y espacios
+  if (token == null) return null;
+  return token.trim().replaceAll('\n', '').replaceAll('\r', '');
 }
-
 // CU08 — Registrar emergencia
 static Future<Map<String, dynamic>?> registrarEmergencia(Map<String, dynamic> datos) async {
   try {
@@ -434,6 +434,18 @@ static Future<bool> decidirCotizacion(int idCotizacion, String accion) async {
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({'accion': accion}),
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    return false;
+  }
+}
+static Future<bool> limpiarCotizaciones(int idEmergencia) async {
+  try {
+    final token = await _getToken();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/cotizaciones/emergencia/$idEmergencia'),
+      headers: {'Authorization': 'Bearer $token'},
     );
     return response.statusCode == 200;
   } catch (e) {

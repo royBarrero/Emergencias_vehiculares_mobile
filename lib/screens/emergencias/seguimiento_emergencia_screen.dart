@@ -5,12 +5,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-<<<<<<< HEAD
 import 'cotizacion_screen.dart';
-=======
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
->>>>>>> origin/devRoy
 
 class SeguimientoEmergenciaScreen extends StatefulWidget {
   final int idEmergencia;
@@ -87,7 +84,12 @@ void _conectarWebSocket() {
     (mensaje) {
       final data = jsonDecode(mensaje);
       if (!mounted) return;
-      setState(() => _estado = data['estado']);
+      setState(() {
+  _estado = data['estado'];
+  if (data['tiempo_estimado_reparacion'] != null) {
+    _tiempoEstimado = data['tiempo_estimado_reparacion'];
+  }
+});
 
       if (data['estado'] == 'en_camino' && _tecnico == null) {
         _cargarTecnicoYTaller(data['id_tecnico'], data['id_taller']);
@@ -104,8 +106,12 @@ void _conectarWebSocket() {
       Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
     },
     onDone: () {
-      if (_estado != 'finalizada' && _estado != 'cancelada') {
-        Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+      if (_estado != 'finalizada' && _estado != 'cancelada' && mounted) {
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted && _estado != 'finalizada' && _estado != 'cancelada') {
+            _conectarWebSocket();
+          }
+        });
       }
     },
   );
@@ -159,32 +165,7 @@ void _conectarWebSocket() {
     }
   }
 
-<<<<<<< HEAD
-  void _consultarEstado() async {
-    final data = await ApiService.obtenerEstadoEmergencia(widget.idEmergencia);
-    if (data != null && mounted) {
-      setState(() {
-  _estado = data['estado'];
-  _tiempoEstimado = data['tiempo_estimado_reparacion'] ?? _tiempoEstimado;
-});
 
-      if (_estado == 'en_camino' && _tecnico == null) {
-        final detalle = await ApiService.obtenerDetalleEmergencia(
-          widget.idEmergencia,
-        );
-        if (detalle != null && detalle['id_tecnico'] != null) {
-          _cargarTecnicoYTaller(detalle['id_tecnico'], detalle['id_taller']);
-        }
-      }
-
-      if (_estado == 'finalizada' || _estado == 'cancelada') {
-        _timer?.cancel();
-      }
-    }
-  }
-
-=======
->>>>>>> origin/devRoy
   double _calcularDistancia(
     double lat1,
     double lng1,
@@ -215,6 +196,264 @@ void _conectarWebSocket() {
     final uri = Uri.parse('tel:${_tecnico!['telefono']}');
     if (await canLaunchUrl(uri)) launchUrl(uri);
   }
+  void _mostrarDialogoCancelacion() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.warning_amber_rounded,
+                color: Colors.red, size: 34),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            '¿Cancelar el servicio?',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2c3e50),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.withOpacity(0.2)),
+            ),
+            child: const Column(
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.red, size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Se aplicará un recargo por cancelación',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'El técnico ya se encuentra en camino hacia tu ubicación. De acuerdo a nuestra política, se cobrará un monto fijo de:',
+                  style: TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Bs 70',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.red,
+                  ),
+                ),
+                Text(
+                  'por cancelación de servicio en camino',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'No cancelar',
+                  style: TextStyle(
+                    color: Color(0xFF2c3e50),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await Future.delayed(const Duration(milliseconds: 300));
+                  if (mounted) _mostrarQRCancelacion();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text(
+                  'Confirmar',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+void _mostrarQRCancelacion() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Pago de recargo',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2c3e50),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Escanea el QR para pagar el recargo por cancelación',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.qr_code_2, size: 140, color: Color(0xFF2c3e50)),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Bs 70',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Recargo por cancelación de servicio',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Una vez realizado el pago, confirma para continuar.',
+                    style: TextStyle(fontSize: 11, color: Colors.orange),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _procesarCancelacion();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text(
+              'Ya pagué — Confirmar cancelación',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+Future<void> _procesarCancelacion() async {
+  // Registrar pago de recargo por cancelación
+  final detalle = await ApiService.obtenerDetalleEmergencia(widget.idEmergencia);
+  if (detalle != null) {
+    await ApiService.registrarPago({
+      'id_emergencia': widget.idEmergencia,
+      'monto_total': 70.0,
+      'comision': 7.0,
+      'monto_neto': 63.0,
+      'metodo_pago': 'efectivo',
+      'estado': 'pendiente',
+    });
+  }
+
+  // Cancelar la emergencia
+  final ok = await ApiService.actualizarEstadoEmergencia(
+    widget.idEmergencia,
+    {'estado': 'cancelada'},
+  );
+
+  if (ok && mounted) {
+    setState(() => _estado = 'cancelada');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Servicio cancelado. Se cobrará Bs 70 por recargo.'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+}
   void _mostrarCalificacion() {
   int _estrellas = 0;
 
@@ -603,45 +842,45 @@ void _conectarWebSocket() {
                   ),
                 ),
             ],
-            // CU30: Tiempo estimado de reparación
-const SizedBox(height: 12),
-FutureBuilder<Map<String, dynamic>?>(
-  future: ApiService.obtenerDetalleEmergencia(widget.idEmergencia),
-  builder: (context, snapshot) {
-    final tiempo = snapshot.data?['tiempo_estimado_reparacion'];
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.orange.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.access_time, color: Colors.orange, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Tiempo estimado de reparación',
-                    style: TextStyle(fontSize: 11, color: Colors.grey)),
-                Text(
-                  tiempo ?? 'Por confirmar',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: tiempo != null ? Colors.orange.shade800 : Colors.grey,
-                  ),
+           // CU30: Tiempo estimado de reparación
+            if (_estado == 'en_camino' || _estado == 'atendiendo' || _estado == 'finalizada') ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  },
-),
+                child: Row(
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.orange, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Tiempo estimado de reparación',
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                          Text(
+                            _tiempoEstimado ?? 'Por confirmar',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: _tiempoEstimado != null
+                                  ? Colors.orange.shade800
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             // Mapa talleres cercanos cuando está pendiente
             if (_estado == 'pendiente' || _estado == 'buscando_taller') ...[
               Container(
@@ -806,35 +1045,105 @@ FutureBuilder<Map<String, dynamic>?>(
                 ),
               ),
             ],
-// Botón solicitar cotización cuando taller está asignado
+// Botones de acción cuando taller está asignado
 if (_estado == 'asignada' && _tallerAsignado != null)
   Padding(
     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-    child: SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CotizacionScreen(
-              idEmergencia: widget.idEmergencia,
-              idTaller: _tallerAsignado!['id_taller'],
-              nombreTaller: _tallerAsignado!['nombre_taller'] ?? 'Taller asignado',
+    child: Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CotizacionScreen(
+                  idEmergencia: widget.idEmergencia,
+                  idTaller: _tallerAsignado!['id_taller'],
+                  nombreTaller: _tallerAsignado!['nombre_taller'] ?? 'Taller asignado',
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.request_quote),
+            label: const Text('Solicitar cotización',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE53935),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ),
-        icon: const Icon(Icons.request_quote),
-        label: const Text('Solicitar cotización',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFE53935),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+           onPressed: () async {
+              await ApiService.actualizarEstadoEmergencia(
+                widget.idEmergencia,
+                {'atencion_directa': true},
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('El taller fue notificado. Espera la confirmación.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.flash_on, color: Color(0xFF2c3e50)),
+            label: const Text(
+              'Continuar sin cotizar',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2c3e50),
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: const BorderSide(color: Color(0xFF2c3e50), width: 1.5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        const Text(
+          'El taller recibirá tu solicitud y asignará un técnico directamente.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: Colors.grey),
+        ),
+      ],
     ),
   ),
+  // Botón cancelar cuando técnico está en camino
+            if (_estado == 'en_camino')
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _mostrarDialogoCancelacion(),
+                    icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                    label: const Text(
+                      'Cancelar servicio',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Colors.red, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ),
             // Botón volver cuando finaliza
             if (_estado == 'finalizada' || _estado == 'cancelada')
               Padding(

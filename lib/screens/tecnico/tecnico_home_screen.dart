@@ -47,14 +47,102 @@ class _TecnicoHomeScreenState extends State<TecnicoHomeScreen> {
     setState(() => _cargando = false);
   }
   Future<void> _cargarEmergencia() async {
-    if (_tecnico == null) return;
-    final emergencia = await ApiService.obtenerEmergenciaTecnico(
-        _tecnico!['id_tecnico']);
-    if (mounted) {
-      setState(() => _emergenciaAsignada = emergencia);
+  if (_tecnico == null) return;
+  final emergencia = await ApiService.obtenerEmergenciaTecnico(
+      _tecnico!['id_tecnico']);
+  if (mounted) {
+    final estadoAnterior = _emergenciaAsignada?['estado'];
+    setState(() => _emergenciaAsignada = emergencia);
+
+    // Notificar al técnico si el servicio fue cancelado
+    if (emergencia == null && estadoAnterior != null &&
+        estadoAnterior != 'finalizada' && estadoAnterior != 'cancelada') {
+      _mostrarNotificacionCancelacion();
     }
-    
   }
+}
+
+void _mostrarNotificacionCancelacion() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.cancel, color: Colors.red, size: 36),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Servicio cancelado',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2c3e50),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.withOpacity(0.2)),
+            ),
+            child: const Column(
+              children: [
+                Text(
+                  'El conductor canceló el servicio.',
+                  style: TextStyle(fontSize: 13, color: Colors.black87),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Ya no es necesario desplazarse. Se aplicó un recargo de Bs 70 al conductor.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Tu estado ha sido actualizado a disponible.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2c3e50),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Entendido'),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 Future<void> _cargarHistorial() async {
   if (_tecnico == null) return;
   final data = await ApiService.obtenerEmergenciasTecnico(_tecnico!['id_tecnico']);

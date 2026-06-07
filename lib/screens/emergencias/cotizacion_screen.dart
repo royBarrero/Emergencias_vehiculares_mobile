@@ -73,7 +73,8 @@ class _CotizacionScreenState extends State<CotizacionScreen> {
           const SnackBar(content: Text('Cotización aceptada'), backgroundColor: Colors.green),
         );
         Navigator.pop(context, 'aceptada');
-      } else {
+     } else {
+        await ApiService.limpiarCotizaciones(widget.idEmergencia);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cotización rechazada'), backgroundColor: Colors.orange),
         );
@@ -288,12 +289,15 @@ class _CotizacionScreenState extends State<CotizacionScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: TextButton(
-                        onPressed: _procesando ? null : () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SeleccionarTallerScreen(idEmergencia: widget.idEmergencia),
-                          ),
-                        ),
+                        onPressed: _procesando ? null : () async {
+    await ApiService.limpiarCotizaciones(widget.idEmergencia);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SeleccionarTallerScreen(idEmergencia: widget.idEmergencia),
+      ),
+    );
+  },
                         child: const Text('Buscar otro taller',
                             style: TextStyle(fontSize: 14, color: Colors.grey)),
                       ),
