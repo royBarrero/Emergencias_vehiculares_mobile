@@ -29,6 +29,7 @@ class _SeguimientoEmergenciaScreenState
   Map<String, dynamic>? _tecnico;
   Map<String, dynamic>? _tallerAsignado;
   String? _tiempoEstimado;
+  int _intentosReconexion = 0;
 
   final Map<String, Map<String, dynamic>> _estadosInfo = {
     'pendiente': {
@@ -75,13 +76,16 @@ class _SeguimientoEmergenciaScreenState
     _cargarDatosIniciales();
     _conectarWebSocket();
   }
+  
 void _conectarWebSocket() {
   final wsUrl = Uri.parse(
-    'ws://127.0.0.1:8000/ws/emergencia/${widget.idEmergencia}'
+    'ws://192.168.1.11:8000/ws/emergencia/${widget.idEmergencia}'
   );
+  _intentosReconexion = 0;
   _wsChannel = WebSocketChannel.connect(wsUrl);
   _wsChannel!.stream.listen(
     (mensaje) {
+      _intentosReconexion = 0; // resetear al recibir mensaje
       final data = jsonDecode(mensaje);
       if (!mounted) return;
       setState(() {
@@ -103,15 +107,21 @@ void _conectarWebSocket() {
       }
     },
     onError: (error) {
-      Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+      _intentosReconexion++;
+      if (_intentosReconexion <= 5) {
+        Future.delayed(const Duration(seconds: 3), _conectarWebSocket);
+      }
     },
     onDone: () {
-      if (_estado != 'finalizada' && _estado != 'cancelada' && mounted) {
-        Future.delayed(const Duration(seconds: 5), () {
-          if (mounted && _estado != 'finalizada' && _estado != 'cancelada') {
-            _conectarWebSocket();
-          }
-        });
+if (_estado != 'finalizada' && _estado != 'cancelada' && mounted) {
+        _intentosReconexion++;
+        if (_intentosReconexion <= 5) {
+          Future.delayed(const Duration(seconds: 5), () {
+            if (mounted && _estado != 'finalizada' && _estado != 'cancelada') {
+              _conectarWebSocket();
+            }
+          });
+        }
       }
     },
   );

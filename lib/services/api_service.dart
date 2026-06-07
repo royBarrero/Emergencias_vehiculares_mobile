@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-static const String baseUrl = 'http://localhost:8000';
-
+static const String baseUrl = 'http://192.168.1.11:8000';
   // LOGIN
  static Future<Map<String, dynamic>?> login(String correo, String contrasena) async {
   try {
@@ -389,6 +388,7 @@ static Future<bool> seleccionarTaller(int idEmergencia, int idTaller) async {
     return false;
   }
 }
+
 static Future<Map<String, dynamic>?> solicitarCotizacion(int idEmergencia, int idTaller) async {
   try {
     final token = await _getToken();
@@ -440,6 +440,7 @@ static Future<bool> decidirCotizacion(int idCotizacion, String accion) async {
     return false;
   }
 }
+
 static Future<bool> limpiarCotizaciones(int idEmergencia) async {
   try {
     final token = await _getToken();
@@ -450,6 +451,19 @@ static Future<bool> limpiarCotizaciones(int idEmergencia) async {
     return response.statusCode == 200;
   } catch (e) {
     return false;
+  }
+}
+
+static Future<void> actualizarFcmToken(int idConductor, String fcmToken) async {
+  try {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/conductores/$idConductor/fcm-token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'fcm_token': fcmToken}),
+    );
+    print('FCM token actualizado: ${response.statusCode}');
+  } catch (e) {
+    print('Error actualizando FCM token: $e');
   }
 }
 }

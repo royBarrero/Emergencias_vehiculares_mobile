@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:emergencias_vehiculares/services/api_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,8 +27,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() => _cargando = false);
 
-      if (respuesta != null) {
+     if (respuesta != null) {
   final idRol = respuesta['id_rol'];
+  
+  // Guardar FCM token si es conductor
+  if (idRol == 1) {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        final idUsuario = respuesta['id_usuario'];
+        final conductor = await ApiService.obtenerConductorPorUsuario(idUsuario);
+        if (conductor != null) {
+          await ApiService.actualizarFcmToken(
+            conductor['id_conductor'], 
+            fcmToken
+          );
+          print('FCM Token guardado: $fcmToken');
+        }
+      }
+    } catch (e) {
+      print('Error guardando FCM token: $e');
+    }
+  }
+
   if (idRol == 3) {
     Navigator.pushReplacementNamed(context, '/tecnico-home');
   } else {
