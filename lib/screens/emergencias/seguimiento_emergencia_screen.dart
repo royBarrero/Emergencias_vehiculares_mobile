@@ -7,6 +7,7 @@ import 'package:emergencias_vehiculares/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
+import 'package:emergencias_vehiculares/screens/home/pago_screen.dart';
 
 class SeguimientoEmergenciaScreen extends StatefulWidget {
   final int idEmergencia;
@@ -746,23 +747,64 @@ void _conectarWebSocket() {
             ],
 
             // Botón volver cuando finaliza
-            if (_estado == 'finalizada' || _estado == 'cancelada')
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.popUntil(context, (r) => r.isFirst),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2c3e50),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Volver al inicio'),
+            if (_estado == 'finalizada')
+  Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PagoScreen(
+                  idEmergencia: widget.idEmergencia,
+                  montoTotal: 150.0, // monto de prueba
                 ),
               ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE53935),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('💳 Realizar pago'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2c3e50),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Volver al inicio'),
+          ),
+        ),
+      ],
+    ),
+  ),
+
+if (_estado == 'cancelada')
+  Padding(
+    padding: const EdgeInsets.all(24),
+    child: ElevatedButton(
+      onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF2c3e50),
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: const Text('Volver al inicio'),
+    ),
+  ),
           ],
         ),
       ),

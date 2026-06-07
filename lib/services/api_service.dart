@@ -384,4 +384,54 @@ static Future<void> actualizarFcmToken(int idConductor, String fcmToken) async {
     print('Error actualizando FCM token: $e');
   }
 }
+static Future<Map<String, dynamic>?> crearPaymentIntent(int idEmergencia, double monto) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.post(
+      Uri.parse('$baseUrl/stripe/crear-intent/$idEmergencia'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'monto_total': monto}),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    print('Error creando payment intent: $e');
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> confirmarPago(int idEmergencia, String paymentIntentId, double monto, String metodo) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.post(
+      Uri.parse('$baseUrl/stripe/confirmar/$idEmergencia'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'payment_intent_id': paymentIntentId, 'monto_total': monto, 'metodo_pago': metodo}),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    print('Error confirmando pago: $e');
+    return null;
+  }
+}
+
+static Future<Map<String, dynamic>?> confirmarPagoEfectivo(int idEmergencia, double monto) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final response = await http.post(
+      Uri.parse('$baseUrl/stripe/confirmar/$idEmergencia'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'payment_intent_id': 'efectivo_${DateTime.now().millisecondsSinceEpoch}', 'monto_total': monto, 'metodo_pago': 'efectivo'}),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  } catch (e) {
+    print('Error confirmando pago efectivo: $e');
+    return null;
+  }
+}
 }

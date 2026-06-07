@@ -8,6 +8,8 @@ import 'seguimiento_emergencia_screen.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:emergencias_vehiculares/services/audio_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:emergencias_vehiculares/services/offline_service.dart';
 
 class RegistrarEmergenciaScreen extends StatefulWidget {
   const RegistrarEmergenciaScreen({super.key});
@@ -30,6 +32,7 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
   double? _longitud;
   String _direccion = 'Obteniendo ubicación...';
   bool _cargandoUbicacion = false;
+  
   final TextEditingController _descripcionCtrl = TextEditingController();
   // Fotos
   final ImagePicker _picker = ImagePicker();
@@ -45,6 +48,7 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
   List<dynamic> _vehiculos = [];
   bool _cargandoVehiculos = true;
   bool _enviando = false;
+  bool _modoOffline = false;
 
   final List<String> _tiposIncidente = [
     'Falla de motor',
@@ -62,8 +66,37 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
     super.initState();
     _cargarVehiculos();
     _obtenerUbicacion();
+    _verificarConexion();
+    _escucharConexion();
   }
+void _verificarConexion() async {
+  final hayConexion = await OfflineService.hayConexion();
+  setState(() => _modoOffline = !hayConexion);
+}
 
+void _escucharConexion() {
+  Connectivity().onConnectivityChanged.listen((result) {
+    final sinConexion = result == ConnectivityResult.none;
+    setState(() => _modoOffline = sinConexion);
+    if (!sinConexion) {
+      _sincronizarPendientes();
+    }
+  });
+}
+
+void _sincronizarPendientes() async {
+  final pendientes = OfflineService.contarPendientes();
+  if (pendientes == 0) return;
+  final resultados = await OfflineService.sincronizarPendientes();
+  if (mounted && resultados.isNotEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Sincronizadas $pendientes emergencias pendientes'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+}
   void _cargarVehiculos() async {
     final prefs = await SharedPreferences.getInstance();
     final idUsuario = prefs.getInt('id_usuario');
@@ -303,63 +336,118 @@ class _RegistrarEmergenciaScreenState extends State<RegistrarEmergenciaScreen> {
   }
 
   void _confirmarEmergencia() async {
-    if (_latitud == null || _longitud == null) {
-      _mostrarError('No se pudo obtener la ubicación GPS. Intenta de nuevo.');
-      return;
-    }
+  if (_latitud == null || _longitud == null) {
+    _mostrarError('No se pudo obtener la ubicación GPS.');
+    return;
+  }
 
-    setState(() => _enviando = true);
+  setState(() => _enviando = true);
 
-    final prioridadAuto = _calcularPrioridad(_tipoIncidente);
+  final datos = {
+    'id_vehiculo': _idVehiculoSeleccionado,
+    'latitud': _latitud,
+    'longitud': _longitud,
+    'direccion_aproximada': _direccion,
+    'tipo_incidente': _tipoIncidente,
+    'prioridad': _calcularPrioridad(_tipoIncidente),
+    'descripcion': _descripcionCtrl.text,
+  };
 
-    final datos = {
-      'id_vehiculo': _idVehiculoSeleccionado,
-      'latitud': _latitud,
-      'longitud': _longitud,
-      'direccion_aproximada': _direccion,
-      'tipo_incidente': _tipoIncidente,
-      'prioridad': prioridadAuto,
-      'descripcion': _descripcionCtrl.text,
-    };
+  // Verificar conexión
+  final hayConexion = await OfflineService.hayConexion();
 
-    final resultado = await ApiService.registrarEmergencia(datos);
-
-    if (resultado != null) {
-      await _subirEvidencias(resultado['id_emergencia']);
-      setState(() => _enviando = false);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SeguimientoEmergenciaScreen(
-            idEmergencia: resultado['id_emergencia'],
+  if (!hayConexion) {
+    // Guardar offline
+    await OfflineService.guardarEmergenciaPendiente(datos);
+    setState(() => _enviando = false);
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off, size: 48, color: Colors.orange),
+              const SizedBox(height: 12),
+              const Text('Sin conexión', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              const Text(
+                'Tu emergencia fue guardada localmente y se enviará automáticamente cuando recuperes internet.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
           ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2c3e50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Entendido', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
         ),
       );
-    } else {
-      setState(() => _enviando = false);
-      _mostrarError('Error al registrar la emergencia. Intenta de nuevo.');
     }
+    return;
   }
+
+  // Con conexión — enviar normalmente
+  final resultado = await ApiService.registrarEmergencia(datos);
+  if (resultado != null) {
+    await _subirEvidencias(resultado['id_emergencia']);
+    setState(() => _enviando = false);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SeguimientoEmergenciaScreen(
+          idEmergencia: resultado['id_emergencia'],
+        ),
+      ),
+    );
+  } else {
+    setState(() => _enviando = false);
+    _mostrarError('Error al registrar la emergencia.');
+  }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2c3e50),
-        foregroundColor: Colors.white,
-        title: const Text('Nueva Emergencia'),
-        elevation: 0,
-        leading: _pasoActual > 0
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _anteriorPaso,
-              )
-            : IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-      ),
+  backgroundColor: _modoOffline ? Colors.orange : const Color(0xFF2c3e50),
+  foregroundColor: Colors.white,
+  title: Row(
+    children: [
+      const Text('Nueva Emergencia'),
+      if (_modoOffline) ...[
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white24,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Text('OFFLINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+        ),
+      ]
+    ],
+  ),
+  elevation: 0,
+  leading: _pasoActual > 0
+      ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _anteriorPaso)
+      : IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+),
       body: Column(
         children: [
           _buildIndicadorPasos(),

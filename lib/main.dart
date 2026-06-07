@@ -7,6 +7,8 @@ import 'screens/auth/register_screen.dart';
 import 'screens/auth/recuperar_screen.dart';
 import 'screens/tecnico/tecnico_home_screen.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:emergencias_vehiculares/services/offline_service.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -14,6 +16,9 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  await OfflineService.inicializar();
+  Stripe.publishableKey = 'pk_test_51TfYwJLYVPkQp4CrEO3Kk8CbW7tDygrrs8Oa5c2BCVYMn9NutfwjkKL41YXuKMIPgVTrI8DfBDapMBO81hgddup100ZOSPunIC';
+await Stripe.instance.applySettings();
   print('Mensaje en background: ${message.notification?.title}');
 }
 
