@@ -39,32 +39,34 @@ class OfflineService {
     return result != ConnectivityResult.none;
   }
 
-  static Future<List<String>> sincronizarPendientes() async {
-    final pendientes = obtenerPendientes();
-    final box = Hive.box(_boxName);
-    List<String> resultados = [];
+  static Future<List<Map<String, dynamic>>> sincronizarPendientes() async {
+  final box = Hive.box(_boxName);
+  List<Map<String, dynamic>> resultados = [];
 
-    for (int i = 0; i < box.length; i++) {
-      final item = box.getAt(i);
-      if (item == null || item['sincronizada'] == true) continue;
+  for (int i = 0; i < box.length; i++) {
+    final item = box.getAt(i);
+    if (item == null || item['sincronizada'] == true) continue;
 
-      try {
-        final datos = Map<String, dynamic>.from(item);
-        datos.remove('timestamp');
-        datos.remove('sincronizada');
+    try {
+      final datos = Map<String, dynamic>.from(item);
+      datos.remove('timestamp');
+      datos.remove('sincronizada');
 
-        final resultado = await ApiService.registrarEmergencia(datos);
-        if (resultado != null) {
-          await marcarSincronizada(i);
-          resultados.add('✅ Emergencia sincronizada: ${datos['tipo_incidente']}');
-        }
-      } catch (e) {
-        resultados.add('❌ Error sincronizando: $e');
+      final resultado = await ApiService.registrarEmergencia(datos);
+      if (resultado != null) {
+        await marcarSincronizada(i);
+        resultados.add({
+          'exito': true,
+          'tipo_incidente': datos['tipo_incidente'],
+          'id_emergencia': resultado['id_emergencia'],
+        });
       }
+    } catch (e) {
+      resultados.add({'exito': false, 'error': e.toString()});
     }
-    return resultados;
   }
-
+  return resultados;
+}
   static int contarPendientes() {
     final box = Hive.box(_boxName);
     return box.values.where((e) => e['sincronizada'] == false).length;

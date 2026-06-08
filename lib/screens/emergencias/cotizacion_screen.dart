@@ -38,28 +38,32 @@ class _CotizacionScreenState extends State<CotizacionScreen> {
   }
 
   void _solicitarYEsperar() async {
-    final cotizacion = await ApiService.solicitarCotizacion(
-      widget.idEmergencia,
-      widget.idTaller,
-    );
-    if (mounted) {
-      setState(() {
-        _cotizacion = cotizacion;
-        _cargando = false;
-      });
-    }
-    _timer = Timer.periodic(const Duration(seconds: 8), (_) => _verificarCotizacion());
+  final cotizacion = await ApiService.solicitarCotizacion(
+    widget.idEmergencia,
+    widget.idTaller,
+  );
+  if (mounted) {
+    setState(() {
+      _cotizacion = cotizacion;
+      _cargando = false;
+    });
   }
+  // Polling cada 3 segundos en lugar de 8
+  _timer = Timer.periodic(const Duration(seconds: 3), (_) => _verificarCotizacion());
+}
 
-  void _verificarCotizacion() async {
-    final cotizacion = await ApiService.obtenerCotizacion(widget.idEmergencia);
-    if (cotizacion != null && mounted) {
-      setState(() => _cotizacion = cotizacion);
-      if (cotizacion['estado'] == 'enviada') {
-        _timer.cancel();
-      }
+void _verificarCotizacion() async {
+  final cotizacion = await ApiService.obtenerCotizacion(widget.idEmergencia);
+  if (!mounted) return;
+  
+  if (cotizacion != null) {
+    setState(() => _cotizacion = cotizacion);
+    // Cancelar polling cuando llegue la cotización o se tome una decisión
+    if (['enviada', 'aceptada', 'rechazada'].contains(cotizacion['estado'])) {
+      _timer.cancel();
     }
   }
+}
 
   void _decidir(String accion) async {
     if (_cotizacion == null) return;

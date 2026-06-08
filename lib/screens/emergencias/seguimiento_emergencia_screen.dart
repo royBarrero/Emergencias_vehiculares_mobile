@@ -80,7 +80,7 @@ class _SeguimientoEmergenciaScreenState
   
 void _conectarWebSocket() {
   final wsUrl = Uri.parse(
-    'ws://192.168.1.2:8000/ws/emergencia/${widget.idEmergencia}'
+    'wss://backend-597509309669.us-central1.run.app/ws/emergencia/${widget.idEmergencia}'
   );
   _intentosReconexion = 0;
   _wsChannel = WebSocketChannel.connect(wsUrl);
@@ -1059,7 +1059,7 @@ Future<void> _procesarCancelacion() async {
               ),
             ],
 // Botones de acción cuando taller está asignado
-if (_estado == 'asignada' && _tallerAsignado != null)
+if ((_estado == 'pendiente' || _estado == 'asignada') && _tallerAsignado != null)
   Padding(
     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
     child: Column(

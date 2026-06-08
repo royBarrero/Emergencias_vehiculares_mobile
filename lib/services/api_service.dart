@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-static const String baseUrl = 'http://192.168.1.2:8000';
+static const String baseUrl = 'https://backend-597509309669.us-central1.run.app';
   // LOGIN
  static Future<Map<String, dynamic>?> login(String correo, String contrasena) async {
   try {
@@ -380,7 +380,7 @@ static Future<bool> seleccionarTaller(int idEmergencia, int idTaller) async {
       },
       body: jsonEncode({
         'id_taller': idTaller,
-        'estado': 'asignada',
+        // sin estado — queda en 'pendiente'
       }),
     );
     return response.statusCode == 200;
@@ -393,6 +393,7 @@ static Future<Map<String, dynamic>?> solicitarCotizacion(int idEmergencia, int i
   try {
     final token = await _getToken();
     final response = await http.post(
+      
       Uri.parse('$baseUrl/cotizaciones/solicitar'),
       headers: {
         'Content-Type': 'application/json',
@@ -403,6 +404,8 @@ static Future<Map<String, dynamic>?> solicitarCotizacion(int idEmergencia, int i
         'id_taller': idTaller,
       }),
     );
+    print('Solicitar cotizacion status: ${response.statusCode}');
+print('Solicitar cotizacion body: ${response.body}');
     if (response.statusCode == 200) return jsonDecode(response.body);
     return null;
   } catch (e) {

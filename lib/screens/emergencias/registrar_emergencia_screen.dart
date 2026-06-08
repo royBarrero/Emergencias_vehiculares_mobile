@@ -4,7 +4,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:emergencias_vehiculares/services/api_service.dart';
-import 'seguimiento_emergencia_screen.dart';
 import 'seleccionar_taller_screen.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:emergencias_vehiculares/services/audio_service.dart';
@@ -88,14 +87,31 @@ void _escucharConexion() {
 void _sincronizarPendientes() async {
   final pendientes = OfflineService.contarPendientes();
   if (pendientes == 0) return;
+  
   final resultados = await OfflineService.sincronizarPendientes();
-  if (mounted && resultados.isNotEmpty) {
+  if (!mounted) return;
+
+  final exitosos = resultados.where((r) => r['exito'] == true).toList();
+  
+  if (exitosos.isNotEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Sincronizadas $pendientes emergencias pendientes'),
+        content: Text('${exitosos.length} emergencia(s) sincronizada(s)'),
         backgroundColor: Colors.green,
       ),
     );
+
+    // Si solo hay una emergencia sincronizada, navegar a seleccionar taller
+    if (exitosos.length == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SeleccionarTallerScreen(
+            idEmergencia: exitosos.first['id_emergencia'],
+          ),
+        ),
+      );
+    }
   }
 }
   void _cargarVehiculos() async {
