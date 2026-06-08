@@ -80,23 +80,25 @@ class _SeguimientoEmergenciaScreenState
   
 void _conectarWebSocket() {
   final wsUrl = Uri.parse(
-    'ws://192.168.1.11:8000/ws/emergencia/${widget.idEmergencia}'
+    'ws://192.168.1.10:8000/ws/emergencia/${widget.idEmergencia}'
   );
   _intentosReconexion = 0;
   _wsChannel = WebSocketChannel.connect(wsUrl);
   _wsChannel!.stream.listen(
     (mensaje) {
-      _intentosReconexion = 0; // resetear al recibir mensaje
-      final data = jsonDecode(mensaje);
+      _intentosReconexion = 0;
+      final data = jsonDecode(mensaje) as Map<String, dynamic>;
+      print('WS data recibida: $data');
       if (!mounted) return;
       setState(() {
-  _estado = data['estado'];
-  if (data['tiempo_estimado_reparacion'] != null) {
-    _tiempoEstimado = data['tiempo_estimado_reparacion'];
-  }
-});
+        _estado = data['estado'];
+        if (data['tiempo_estimado_reparacion'] != null) {
+          _tiempoEstimado = data['tiempo_estimado_reparacion'];
+        }
+      });
 
       if (data['estado'] == 'en_camino' && _tecnico == null) {
+        print('Cargando tecnico: ${data['id_tecnico']}, taller: ${data['id_taller']}');
         _cargarTecnicoYTaller(data['id_tecnico'], data['id_taller']);
       }
       if (data['estado'] == 'finalizada') {
