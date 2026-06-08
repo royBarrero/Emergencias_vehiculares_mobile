@@ -80,7 +80,7 @@ class _SeguimientoEmergenciaScreenState
   
 void _conectarWebSocket() {
   final wsUrl = Uri.parse(
-    'ws://192.168.1.10:8000/ws/emergencia/${widget.idEmergencia}'
+    'ws://192.168.1.2:8000/ws/emergencia/${widget.idEmergencia}'
   );
   _intentosReconexion = 0;
   _wsChannel = WebSocketChannel.connect(wsUrl);
