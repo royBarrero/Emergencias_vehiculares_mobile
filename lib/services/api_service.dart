@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-static const String baseUrl = 'https://backend-597509309669.us-central1.run.app';
+//static const String baseUrl = 'https://backend-597509309669.us-central1.run.app';
+static const String baseUrl = 'http://192.168.1.2:8000'; // tu IP local
   // LOGIN
  static Future<Map<String, dynamic>?> login(String correo, String contrasena) async {
   try {
@@ -388,7 +389,31 @@ static Future<bool> seleccionarTaller(int idEmergencia, int idTaller) async {
     return false;
   }
 }
+static Future<bool> calificarTaller(int idEmergencia, int calificacion) async {
+  try {
+    final token = await _getToken();
+    
+    // Obtener id_taller desde la emergencia
+    final emergencia = await obtenerDetalleEmergencia(idEmergencia);
+    if (emergencia == null) return false;
+    
+    final idTaller = emergencia['id_taller'];
+    if (idTaller == null) return false;
 
+    final response = await http.post(
+      Uri.parse('$baseUrl/talleres/$idTaller/calificar'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'calificacion': calificacion}),
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    print('Error calificando taller: $e');
+    return false;
+  }
+}
 static Future<Map<String, dynamic>?> solicitarCotizacion(int idEmergencia, int idTaller) async {
   try {
     final token = await _getToken();
@@ -508,11 +533,15 @@ static Future<Map<String, dynamic>?> confirmarPagoEfectivo(int idEmergencia, dou
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     final response = await http.post(
-      Uri.parse('$baseUrl/stripe/confirmar/$idEmergencia'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      body: jsonEncode({'payment_intent_id': 'efectivo_${DateTime.now().millisecondsSinceEpoch}', 'monto_total': monto, 'metodo_pago': 'efectivo'}),
+      Uri.parse('$baseUrl/stripe/confirmar-efectivo/$idEmergencia'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
+      body: jsonEncode({'monto_total': monto}),
     );
     if (response.statusCode == 200) return jsonDecode(response.body);
+    print('Error efectivo: ${response.statusCode} ${response.body}');
     return null;
   } catch (e) {
     print('Error confirmando pago efectivo: $e');

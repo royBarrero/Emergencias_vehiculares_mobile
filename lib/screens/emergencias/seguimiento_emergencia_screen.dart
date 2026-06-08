@@ -30,6 +30,7 @@ class _SeguimientoEmergenciaScreenState
   Map<String, dynamic>? _tecnico;
   Map<String, dynamic>? _tallerAsignado;
   String? _tiempoEstimado;
+  double? _montoCotizacion;
   int _intentosReconexion = 0;
 
   final Map<String, Map<String, dynamic>> _estadosInfo = {
@@ -74,13 +75,13 @@ class _SeguimientoEmergenciaScreenState
   void initState() {
     super.initState();
     _cargarDatosIniciales();
-    _cargarDatosIniciales();
     _conectarWebSocket();
   }
   
 void _conectarWebSocket() {
   final wsUrl = Uri.parse(
-    'wss://backend-597509309669.us-central1.run.app/ws/emergencia/${widget.idEmergencia}'
+    //'wss://backend-597509309669.us-central1.run.app/ws/emergencia/${widget.idEmergencia}'
+    'ws://192.168.1.2:8000/ws/emergencia/${widget.idEmergencia}'
   );
   _intentosReconexion = 0;
   _wsChannel = WebSocketChannel.connect(wsUrl);
@@ -101,8 +102,10 @@ void _conectarWebSocket() {
         print('Cargando tecnico: ${data['id_tecnico']}, taller: ${data['id_taller']}');
         _cargarTecnicoYTaller(data['id_tecnico'], data['id_taller']);
       }
+      if (data['estado'] == 'asignada') {
+  _recargarMontoCotizacion();
+}
       if (data['estado'] == 'finalizada') {
-        Future.delayed(const Duration(seconds: 1), _mostrarCalificacion);
         _wsChannel?.sink.close();
       }
       if (data['estado'] == 'cancelada') {
@@ -134,29 +137,45 @@ if (_estado != 'finalizada' && _estado != 'cancelada' && mounted) {
    _wsChannel?.sink.close();
     super.dispose();
   }
-
-  void _cargarDatosIniciales() async {
+void _recargarMontoCotizacion() async {
+  final cotizacion = await ApiService.obtenerCotizacion(widget.idEmergencia);
+  if (cotizacion != null && mounted) {
+    setState(() => _montoCotizacion = 
+      (cotizacion['monto_estimado'] as num?)?.toDouble());
+    print('=== MONTO RECARGADO: $_montoCotizacion');
+  }
+}
+ void _cargarDatosIniciales() async {
     final detalle = await ApiService.obtenerDetalleEmergencia(
       widget.idEmergencia,
     );
     if (detalle != null && mounted) {
       setState(() {
-  _latEmergencia = detalle['latitud']?.toDouble();
-  _lngEmergencia = detalle['longitud']?.toDouble();
-  _estado = detalle['estado'] ?? 'pendiente';
-  _tiempoEstimado = detalle['tiempo_estimado_reparacion'];
-});
+        _latEmergencia = detalle['latitud']?.toDouble();
+        _lngEmergencia = detalle['longitud']?.toDouble();
+        _estado = detalle['estado'] ?? 'pendiente';
+        _tiempoEstimado = detalle['tiempo_estimado_reparacion'];
+      });
       if (detalle['id_tecnico'] != null) {
         _cargarTecnicoYTaller(detalle['id_tecnico'], detalle['id_taller']);
       } else if (detalle['id_taller'] != null) {
         final taller = await ApiService.obtenerTaller(detalle['id_taller']);
         if (mounted) setState(() => _tallerAsignado = taller);
       }
+      // Cargar monto — primero desde emergencia, luego desde cotización
+      if (detalle['monto_cotizacion'] != null) {
+        setState(() => _montoCotizacion = 
+          (detalle['monto_cotizacion'] as num).toDouble());
+      } else {
+        final cotizacion = await ApiService.obtenerCotizacion(widget.idEmergencia);
+        if (cotizacion != null && mounted) {
+          setState(() => _montoCotizacion = 
+            (cotizacion['monto_estimado'] as num?)?.toDouble());
+        }
+      }
     }
 
-    final talleres = await ApiService.obtenerTalleresCercanos(
-      widget.idEmergencia,
-    );
+    final talleres = await ApiService.obtenerTalleresCercanos(widget.idEmergencia);
     if (talleres != null && mounted) {
       setState(() {
         _talleresCercanos = talleres;
@@ -1166,15 +1185,15 @@ if ((_estado == 'pendiente' || _estado == 'asignada') && _tallerAsignado != null
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PagoScreen(
-                  idEmergencia: widget.idEmergencia,
-                  montoTotal: 150.0, // monto de prueba
-                ),
-              ),
-            ),
+           onPressed: () => Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => PagoScreen(
+      idEmergencia: widget.idEmergencia,
+      montoTotal: _montoCotizacion ?? 0.0, // ← monto real
+    ),
+  ),
+),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE53935),
               foregroundColor: Colors.white,

@@ -55,10 +55,12 @@ class _TecnicoHomeScreenState extends State<TecnicoHomeScreen> {
     setState(() => _emergenciaAsignada = emergencia);
 
     // Notificar al técnico si el servicio fue cancelado
-    if (emergencia == null && estadoAnterior != null &&
-        estadoAnterior != 'finalizada' && estadoAnterior != 'cancelada') {
-      _mostrarNotificacionCancelacion();
-    }
+   if (emergencia == null && estadoAnterior != null &&
+    estadoAnterior != 'finalizada' && 
+    estadoAnterior != 'cancelada' &&
+    estadoAnterior != 'atendiendo') { // ← agregar atendiendo
+  _mostrarNotificacionCancelacion();
+}
   }
 }
 
@@ -448,15 +450,20 @@ Widget build(BuildContext context) {
     builder: (context) => _PantallaPago(
       emergencia: _emergenciaAsignada!,
       onFinalizar: (double monto, String metodo) async {
-        Navigator.pop(context);
-        await ApiService.registrarPago({
-          'id_emergencia': _emergenciaAsignada!['id_emergencia'],
-          'monto_total': monto,
-          'metodo_pago': metodo,
-        });
-        await _actualizarEstado('finalizada');
-        await _cargarHistorial();
-      },
+  Navigator.pop(context);
+  // Actualizar monto final en la emergencia
+  await ApiService.actualizarEstadoEmergencia(
+    _emergenciaAsignada!['id_emergencia'],
+    {'monto_cotizacion': monto},
+  );
+  await ApiService.registrarPago({
+    'id_emergencia': _emergenciaAsignada!['id_emergencia'],
+    'monto_total': monto,
+    'metodo_pago': metodo,
+  });
+  await _actualizarEstado('finalizada');
+  await _cargarHistorial();
+},
     ),
   );
 }
@@ -473,7 +480,23 @@ class _PantallaPago extends StatefulWidget {
 
 class _PantallaPagoState extends State<_PantallaPago> {
   String _metodoPago = '';
-  final _montoController = TextEditingController();
+  late TextEditingController _montoController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Prellenar con monto de cotización si existe
+    final montoCotizacion = widget.emergencia['monto_cotizacion'];
+    _montoController = TextEditingController(
+      text: montoCotizacion != null ? montoCotizacion.toString() : '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _montoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
